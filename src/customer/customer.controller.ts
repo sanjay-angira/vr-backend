@@ -56,6 +56,15 @@ export class CustomerController {
     return this.customerHomepageService.getHomepage();
   }
 
+  @Get('sitemap')
+  @ApiOperation({
+    summary:
+      'Lightweight product/blog/category slugs for storefront sitemap.xml',
+  })
+  async getSitemapEntries() {
+    return this.customerHomepageService.getSitemapEntries();
+  }
+
   @Get('blogs')
   @ApiOperation({ summary: 'Get published blogs for website' })
   @ApiQuery({ name: 'pageNumber', required: false, type: Number })

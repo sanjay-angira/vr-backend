@@ -44,6 +44,94 @@ export class CustomerHomepageService {
     );
   }
 
+  /**
+   * Lightweight slug list for Next.js /sitemap.xml.
+   * Avoids heavy store/blog card payloads that time out during sitemap generation.
+   */
+  async getSitemapEntries() {
+    const [products, blogs, categories] = await Promise.all([
+      this.productRepository
+        .createQueryBuilder('product')
+        .select([
+          'product.id',
+          'product.productSlug',
+          'product.updatedAt',
+          'product.createdAt',
+        ])
+        .where('product.isActive = :isActive', { isActive: true })
+        .andWhere('product.publishStatus = :publishStatus', {
+          publishStatus: PublishStatus.PUBLISHED,
+        })
+        .andWhere('product.productSlug IS NOT NULL')
+        .andWhere("product.productSlug != ''")
+        .orderBy('product.updatedAt', 'DESC')
+        .getMany(),
+      this.blogRepository
+        .createQueryBuilder('blog')
+        .select([
+          'blog.id',
+          'blog.slug',
+          'blog.updatedAt',
+          'blog.createdAt',
+          'blog.publishedAt',
+        ])
+        .where('blog.isActive = :isActive', { isActive: true })
+        .andWhere('blog.status = :status', { status: 'published' })
+        .andWhere('blog.slug IS NOT NULL')
+        .andWhere("blog.slug != ''")
+        .orderBy('blog.publishedAt', 'DESC', 'NULLS LAST')
+        .addOrderBy('blog.updatedAt', 'DESC')
+        .getMany(),
+      this.categoryRepository
+        .createQueryBuilder('category')
+        .select([
+          'category.id',
+          'category.categorySlug',
+          'category.updatedAt',
+          'category.createdAt',
+        ])
+        .where('category.isActive = :isActive', { isActive: true })
+        .andWhere('category.publishStatus = :publishStatus', {
+          publishStatus: 'published',
+        })
+        .andWhere('category.categorySlug IS NOT NULL')
+        .andWhere("category.categorySlug != ''")
+        .orderBy('category.id', 'ASC')
+        .getMany(),
+    ]);
+
+    const toIso = (value?: Date | null) =>
+      value instanceof Date && !Number.isNaN(value.getTime())
+        ? value.toISOString()
+        : undefined;
+
+    return successResponse(
+      {
+        products: products.map((product) => ({
+          slug: product.productSlug,
+          lastModified:
+            toIso(product.updatedAt) || toIso(product.createdAt) || undefined,
+        })),
+        blogs: blogs.map((blog) => ({
+          slug: blog.slug,
+          lastModified:
+            toIso(blog.updatedAt) ||
+            toIso(blog.publishedAt) ||
+            toIso(blog.createdAt) ||
+            undefined,
+        })),
+        categories: categories.map((category) => ({
+          slug: category.categorySlug,
+          lastModified:
+            toIso(category.updatedAt) ||
+            toIso(category.createdAt) ||
+            undefined,
+        })),
+      },
+      'Sitemap entries retrieved successfully',
+    );
+  }
+
   private getMaxItems(section: CmsSection) {
     const maxProducts = Number(section.data?.maxProducts);
     return Number.isFinite(maxProducts) && maxProducts > 0 ? maxProducts : 8;
