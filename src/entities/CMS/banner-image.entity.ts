@@ -6,24 +6,20 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
-import { Product } from './product.entity';
+import { Banner } from './banner.entity';
 
-@Entity('product_images')
-export class ProductImage {
+export enum BannerImageRole {
+  DESKTOP = 'desktop',
+  MOBILE = 'mobile',
+}
+
+@Entity('banner_images')
+export class BannerImage {
   @PrimaryGeneratedColumn()
   id!: number;
 
   @Column({ type: 'varchar', length: 2048 })
   originalUrl!: string;
-
-  @Column({ type: 'varchar', length: 512, nullable: true })
-  altText!: string | null;
-
-  @Column({ type: 'varchar', length: 2048, nullable: true })
-  webp400!: string | null;
-
-  @Column({ type: 'varchar', length: 2048, nullable: true })
-  jpg400!: string | null;
 
   @Column({ type: 'varchar', length: 2048, nullable: true })
   webp800!: string | null;
@@ -37,13 +33,32 @@ export class ProductImage {
   @Column({ type: 'varchar', length: 2048, nullable: true })
   jpg1200!: string | null;
 
+  @Column({ type: 'varchar', length: 2048, nullable: true })
+  webp1440!: string | null;
+
+  @Column({ type: 'varchar', length: 2048, nullable: true })
+  jpg1440!: string | null;
+
+  @Column({ type: 'varchar', length: 2048, nullable: true })
+  webp1920!: string | null;
+
+  @Column({ type: 'varchar', length: 2048, nullable: true })
+  jpg1920!: string | null;
+
+  @Column({
+    type: 'enum',
+    enum: BannerImageRole,
+    default: BannerImageRole.DESKTOP,
+  })
+  role!: BannerImageRole;
+
   @Column({ default: 0 })
   sortOrder!: number;
 
-  @ManyToOne(() => Product, (product) => product.images, {
+  @ManyToOne(() => Banner, (banner) => banner.images, {
     onDelete: 'CASCADE',
   })
-  product!: Product;
+  banner!: Banner;
 
   @CreateDateColumn({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
   createdAt!: Date;

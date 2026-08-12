@@ -1,23 +1,20 @@
 import { IsString, IsBoolean } from 'class-validator';
-
 import { PartialType } from '@nestjs/swagger';
-
 import { PaginationDto } from './common.dto';
 
 export class CreateAttributeDto {
   @IsString()
-  name: string;
+  name!: string;
 
   @IsBoolean()
-  isFilterable: boolean;
+  isFilterable!: boolean;
 
   @IsBoolean()
-  isRequired: boolean;
+  isRequired!: boolean;
 
   @IsBoolean()
-  supportsImage: boolean;
+  supportsImage!: boolean;
 }
 
 export class UpdateAttributeDto extends PartialType(CreateAttributeDto) {}
-
 export class AttributeQueryDto extends PaginationDto {}

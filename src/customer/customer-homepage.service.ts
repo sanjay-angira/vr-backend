@@ -9,6 +9,14 @@ import { Category } from 'src/entities/productCategory/category.entity';
 import { BlogPost } from 'src/entities/blog/blog-posts.entity';
 import { Banner } from 'src/entities/CMS/banner.entity';
 import { Review } from 'src/entities/product/review.entity';
+import { pickOptimizedImageUrl } from 'src/commonServices/image-url.util';
+import {
+  bannerImageSource,
+  blogImageSource,
+  categoryImageSource,
+  pickProductCardImage,
+} from 'src/commonServices/image-relation.util';
+import { BannerImageRole } from 'src/entities/CMS/banner-image.entity';
 
 @Injectable()
 export class CustomerHomepageService {
@@ -279,7 +287,7 @@ export class CustomerHomepageService {
       discountAmount: pricing.discountAmount,
       discountPercentage: pricing.discountPercentage,
       appliedOffer: pricing.appliedOffer,
-      image: selectedImages[0]?.url || '',
+      image: pickProductCardImage(selectedImages[0], 400),
       category: product.category?.categoryName || '',
       rating: Math.round(averageRating * 10) / 10,
       reviewCount: approvedReviews.length,
@@ -294,6 +302,7 @@ export class CustomerHomepageService {
         isActive: true,
         publishStatus: 'published',
       },
+      relations: ['images'],
       loadEagerRelations: false,
       order: { id: 'ASC' },
       take: limit,
@@ -303,7 +312,7 @@ export class CustomerHomepageService {
       id: category.id,
       name: category.categoryName,
       description: category.shortDescription || category.description || '',
-      image: category.image || '',
+      image: pickOptimizedImageUrl(categoryImageSource(category), 400, 'webp'),
       slug: category.categorySlug,
       href: category.categorySlug
         ? `/products?category=${encodeURIComponent(category.categorySlug)}`
@@ -318,27 +327,31 @@ export class CustomerHomepageService {
         isActive: true,
         status: 'published',
       },
-      relations: ['category'],
+      relations: ['category', 'images'],
       loadEagerRelations: false,
       order: { publishedAt: 'DESC', id: 'DESC' },
       take: limit,
     });
 
-    return blogs.map((blog) => ({
-      id: blog.id,
-      title: blog.title,
-      excerpt: blog.excerpt || '',
-      image: blog.thumbnailImage || blog.blogImage || '',
-      category: blog.category?.title || '',
-      date: blog.publishedAt
-        ? new Date(blog.publishedAt).toLocaleDateString('en-IN', {
-            day: 'numeric',
-            month: 'short',
-            year: 'numeric',
-          })
-        : '',
-      href: blog.slug ? `/blog/${blog.slug}` : '#',
-    }));
+    return blogs.map((blog) => {
+      const source = blogImageSource(blog);
+
+      return {
+        id: blog.id,
+        title: blog.title,
+        excerpt: blog.excerpt || '',
+        image: pickOptimizedImageUrl(source, 400, 'webp'),
+        category: blog.category?.title || '',
+        date: blog.publishedAt
+          ? new Date(blog.publishedAt).toLocaleDateString('en-IN', {
+              day: 'numeric',
+              month: 'short',
+              year: 'numeric',
+            })
+          : '',
+        href: blog.slug ? `/blog/${blog.slug}` : '#',
+      };
+    });
   }
 
   private async loadBanners(sectionId: number, limit: number) {
@@ -347,6 +360,7 @@ export class CustomerHomepageService {
         section: { id: sectionId },
         status: true,
       },
+      relations: ['images'],
       order: { position: 'ASC', id: 'ASC' },
       take: limit,
     });
@@ -355,8 +369,16 @@ export class CustomerHomepageService {
       id: banner.id,
       title: banner.title,
       subtitle: banner.subtitle || '',
-      image: banner.image,
-      mobileImage: banner.mobileImage || banner.image,
+      image: pickOptimizedImageUrl(
+        bannerImageSource(banner, BannerImageRole.DESKTOP),
+        1920,
+        'webp',
+      ),
+      mobileImage: pickOptimizedImageUrl(
+        bannerImageSource(banner, BannerImageRole.MOBILE),
+        1200,
+        'webp',
+      ),
       link: banner.bannerLink || '/shop',
     }));
   }

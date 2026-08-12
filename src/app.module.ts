@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { DataSource } from 'typeorm';
 import { ProductsModule } from './products/products.module';
 import { CategoriesModule } from './categories/categories.module';
 import { UsersModule } from './users/users.module';
@@ -28,6 +29,7 @@ import { UploadModule } from './upload/upload.module';
 import { CmsPageModule } from './cms-page/cms-page.module';
 import { HeaderModule } from './header/header.module';
 import { DashboardModule } from './dashboard/dashboard.module';
+import { renameProductImageUrlColumns } from './commonServices/rename-product-image-url';
 
 // Main application module
 @Module({
@@ -35,22 +37,42 @@ import { DashboardModule } from './dashboard/dashboard.module';
     ConfigModule.forRoot({ isGlobal: true }),
     TypeOrmModule.forRootAsync({
       useFactory: (configService: ConfigService) => ({
-        type: 'postgres',
+        type: 'postgres' as const,
         schema: 'public',
-        host: configService.get('DB_HOST'),
-        port: parseInt(configService.get('DB_PORT') || '5432'),
-        username:
-          configService.get('DB_USERNAME'),
-        password:
-          configService.get('DB_PASSWORD'),
-        database:
-          configService.get('DB_DATABASE'),
-
+        host: configService.get<string>('DB_HOST'),
+        port: parseInt(configService.get<string>('DB_PORT') || '5432', 10),
+        username: configService.get<string>('DB_USERNAME'),
+        password: configService.get<string>('DB_PASSWORD'),
+        database: configService.get<string>('DB_DATABASE'),
         entities: [__dirname + '/**/*.entity{.ts,.js,.tsx,.jsx}'],
         synchronize: true,
         autoLoadEntities: true,
         logging: true,
       }),
+      dataSourceFactory: async (options) => {
+        if (!options) {
+          throw new Error('TypeORM options are required');
+        }
+
+        // Safety net if main.ts prep was skipped (e.g. tests).
+        const prep = new DataSource({
+          ...options,
+          synchronize: false,
+          entities: [],
+          migrations: [],
+          subscribers: [],
+        });
+        await prep.initialize();
+        try {
+          await renameProductImageUrlColumns(prep);
+        } finally {
+          await prep.destroy();
+        }
+
+        const dataSource = new DataSource(options);
+        await dataSource.initialize();
+        return dataSource;
+      },
       inject: [ConfigService],
     }),
     ScheduleModule.forRoot(),

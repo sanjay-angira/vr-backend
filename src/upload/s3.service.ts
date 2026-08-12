@@ -4,11 +4,16 @@ import {
   Logger,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { DeleteObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import {
+  DeleteObjectCommand,
+  GetObjectCommand,
+  S3Client,
+} from '@aws-sdk/client-s3';
 import { Upload } from '@aws-sdk/lib-storage';
 import { NodeHttpHandler } from '@smithy/node-http-handler';
 import * as https from 'node:https';
 import * as tls from 'node:tls';
+import { Readable } from 'node:stream';
 
 export interface S3UploadResult {
   Location: string;
@@ -156,12 +161,29 @@ export class S3Service {
     const nameKey = `${timestamp}${sanitizedFileName}`;
     const objectKey = cleanPath ? `${cleanPath}/${nameKey}` : nameKey;
 
+    return this.uploadBuffer(fileBuffer, objectKey, contentType);
+  }
+
+  /** Upload a buffer to an exact S3 object key. */
+  async uploadBuffer(
+    fileBuffer: Buffer,
+    objectKey: string,
+    contentType: string,
+  ): Promise<S3UploadResult> {
+    if (!fileBuffer?.length) {
+      throw new InternalServerErrorException(
+        'Upload failed: empty file buffer',
+      );
+    }
+
+    const key = objectKey.replace(/^\/+/, '');
+
     try {
       const upload = new Upload({
         client: this.s3Client,
         params: {
           Bucket: this.bucket,
-          Key: objectKey,
+          Key: key,
           Body: fileBuffer,
           ContentType: contentType,
         },
@@ -170,8 +192,8 @@ export class S3Service {
       const result = await upload.done();
 
       return {
-        Location: this.buildObjectUrl(objectKey),
-        Key: objectKey,
+        Location: this.buildObjectUrl(key),
+        Key: key,
         Bucket: this.bucket,
         ETag: result.ETag,
       };
@@ -186,6 +208,60 @@ export class S3Service {
         `Failed to upload file to S3: ${message}`,
       );
     }
+  }
+
+  async getObjectBuffer(
+    fileUrlOrKey: string,
+  ): Promise<{ buffer: Buffer; contentType?: string; key: string }> {
+    const objectKey =
+      this.getObjectKeyFromUrl(fileUrlOrKey, null) ||
+      fileUrlOrKey.replace(/^\/+/, '');
+
+    if (!objectKey) {
+      throw new InternalServerErrorException(
+        'Could not resolve S3 object key for download',
+      );
+    }
+
+    try {
+      const result = await this.s3Client.send(
+        new GetObjectCommand({
+          Bucket: this.bucket,
+          Key: objectKey,
+        }),
+      );
+
+      const body = result.Body;
+      if (!body) {
+        throw new InternalServerErrorException('Empty S3 object body');
+      }
+
+      const buffer = await this.streamToBuffer(body as Readable);
+
+      return {
+        buffer,
+        contentType: result.ContentType,
+        key: objectKey,
+      };
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Unknown S3 error';
+      this.logger.error(
+        `S3 getObject failed: ${message}`,
+        error instanceof Error ? error.stack : undefined,
+      );
+      throw new InternalServerErrorException(
+        `Failed to download file from S3: ${message}`,
+      );
+    }
+  }
+
+  private async streamToBuffer(stream: Readable): Promise<Buffer> {
+    const chunks: Buffer[] = [];
+    for await (const chunk of stream) {
+      chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+    }
+    return Buffer.concat(chunks);
   }
 
   async deleteObject(

@@ -13,8 +13,29 @@ export class VariantImage {
   @PrimaryGeneratedColumn()
   id!: number;
 
-  @Column()
-  url!: string;
+  @Column({ type: 'varchar', length: 2048 })
+  originalUrl!: string;
+
+  @Column({ type: 'varchar', length: 512, nullable: true })
+  altText!: string | null;
+
+  @Column({ type: 'varchar', length: 2048, nullable: true })
+  webp400!: string | null;
+
+  @Column({ type: 'varchar', length: 2048, nullable: true })
+  jpg400!: string | null;
+
+  @Column({ type: 'varchar', length: 2048, nullable: true })
+  webp800!: string | null;
+
+  @Column({ type: 'varchar', length: 2048, nullable: true })
+  jpg800!: string | null;
+
+  @Column({ type: 'varchar', length: 2048, nullable: true })
+  webp1200!: string | null;
+
+  @Column({ type: 'varchar', length: 2048, nullable: true })
+  jpg1200!: string | null;
 
   @Column({ default: 0 })
   sortOrder!: number;

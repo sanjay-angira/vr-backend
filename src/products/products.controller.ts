@@ -53,11 +53,11 @@ export class ProductsController {
           attributes: [{ attributeId: 1 }, { attributeId: 2 }],
           images: [
             {
-              url: 'https://cdn.example.com/products/turmeric/front.jpg',
+              originalUrl: 'https://cdn.example.com/products/turmeric/front.jpg',
               sortOrder: 1,
             },
             {
-              url: 'https://cdn.example.com/products/turmeric/back.jpg',
+              originalUrl: 'https://cdn.example.com/products/turmeric/back.jpg',
               sortOrder: 2,
             },
           ],
@@ -120,11 +120,11 @@ export class ProductsController {
           attributes: [{ attributeId: 1 }, { attributeId: 2 }],
           images: [
             {
-              url: 'https://cdn.example.com/products/s21/front-v2.jpg',
+              originalUrl: 'https://cdn.example.com/products/s21/front-v2.jpg',
               sortOrder: 1,
             },
             {
-              url: 'https://cdn.example.com/products/s21/back-v2.jpg',
+              originalUrl: 'https://cdn.example.com/products/s21/back-v2.jpg',
               sortOrder: 2,
             },
           ],
@@ -136,7 +136,7 @@ export class ProductsController {
               stock: 40,
               images: [
                 {
-                  url: 'https://cdn.example.com/products/s21/128-v2.jpg',
+                  originalUrl: 'https://cdn.example.com/products/s21/128-v2.jpg',
                   sortOrder: 1,
                 },
               ],
@@ -148,7 +148,7 @@ export class ProductsController {
               stock: 25,
               images: [
                 {
-                  url: 'https://cdn.example.com/products/s21/256-v2.jpg',
+                  originalUrl: 'https://cdn.example.com/products/s21/256-v2.jpg',
                   sortOrder: 1,
                 },
               ],
@@ -160,7 +160,7 @@ export class ProductsController {
               sku: 'SGS21-512',
               images: [
                 {
-                  url: 'https://cdn.example.com/products/s21/512-v2.jpg',
+                  originalUrl: 'https://cdn.example.com/products/s21/512-v2.jpg',
                   sortOrder: 1,
                 },
               ],

@@ -20,6 +20,7 @@ import { Brand } from 'src/entities/product/brand.entity';
 import { ProductAttribute } from 'src/entities/product/product-attribute.entity';
 import { Attribute } from 'src/entities/product/attribute.entity';
 import { ProductImage } from 'src/entities/product/product-images.entity';
+import { productImageColumnFields } from 'src/commonServices/image-asset.util';
 
 @Injectable()
 export class UpdateProductService {
@@ -182,7 +183,7 @@ export class UpdateProductService {
         if (updateProductDto.images.length) {
           const images = updateProductDto.images.map((img) =>
             this.productImageRepo.create({
-              url: img.url,
+              ...productImageColumnFields(img),
               sortOrder: img.sortOrder ?? 0,
               product: { id: product.id },
             }),

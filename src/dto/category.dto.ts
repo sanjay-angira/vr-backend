@@ -92,12 +92,12 @@ export class CreateCategoryDto {
   @ApiProperty({ example: 'Spices' })
   @IsNotEmpty()
   @IsString()
-  categoryName: string;
+  categoryName!: string;
 
   @ApiProperty({ example: 'spices' })
   @IsNotEmpty()
   @IsString()
-  categorySlug: string;
+  categorySlug!: string;
 
   @ApiPropertyOptional({ example: 'A short summary of this category.' })
   @IsOptional()
@@ -124,7 +124,10 @@ export class CreateCategoryDto {
   @IsBoolean()
   isActive?: boolean;
 
-  @ApiPropertyOptional({ example: 'https://example.com/images/spices.jpg' })
+  @ApiPropertyOptional({
+    example: 'https://example.com/images/spices.jpg',
+    description: 'Original image URL → category_images.originalUrl (+ derived sizes)',
+  })
   @IsOptional()
   @IsString()
   image?: string;
@@ -137,12 +140,12 @@ export class CreateCategoryDto {
   @IsString()
   publishStatus?: string;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ description: 'Stored on category_images.image3d' })
   @IsOptional()
   @IsString()
   image3d?: string;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ description: 'Stored on category_images.video' })
   @IsOptional()
   @IsString()
   video?: string;
@@ -152,7 +155,7 @@ export class CreateCategoryDto {
   @IsString()
   icon?: string;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ description: 'Stored on category_images.altText' })
   @IsOptional()
   @IsString()
   imageAltText?: string;
@@ -206,10 +209,12 @@ export class UpdateCategoryDto {
   @IsBoolean()
   isActive?: boolean;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({
+    description: 'Original image URL → category_images.originalUrl (+ derived sizes)',
+  })
   @IsOptional()
   @IsString()
-  image?: string;
+  image?: string | null;
 
   @ApiPropertyOptional({ type: [Number] })
   @IsOptional()
@@ -222,25 +227,25 @@ export class UpdateCategoryDto {
   @IsString()
   publishStatus?: string;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ description: 'Stored on category_images.image3d' })
   @IsOptional()
   @IsString()
-  image3d?: string;
+  image3d?: string | null;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ description: 'Stored on category_images.video' })
   @IsOptional()
   @IsString()
-  video?: string;
+  video?: string | null;
 
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
   icon?: string;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ description: 'Stored on category_images.altText' })
   @IsOptional()
   @IsString()
-  imageAltText?: string;
+  imageAltText?: string | null;
 
   @ApiPropertyOptional()
   @IsOptional()

@@ -15,6 +15,7 @@ import {
   VariantAttribute,
 } from 'src/entities/product/product-variant-attribute.entity';
 import { CreateVariantDto } from 'src/dto/product.dto';
+import { productImageColumnFields } from 'src/commonServices/image-asset.util';
 
 @Injectable()
 export class AddProductVariantService {
@@ -76,7 +77,7 @@ export class AddProductVariantService {
       if (v.images?.length) {
         const images = v.images.map((img) =>
           this.variantImageRepo.create({
-            url: img.url,
+            ...productImageColumnFields(img),
             sortOrder: img.sortOrder ?? 0,
             variant: { id: savedVariant.id },
           }),

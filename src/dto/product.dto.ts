@@ -8,6 +8,7 @@ import {
   IsNumber,
   IsOptional,
   IsString,
+  ValidateIf,
   ValidateNested,
   IsInt,
 } from 'class-validator';
@@ -17,13 +18,13 @@ import { AtttributeViewOption } from 'src/entities/product/product-variant-attri
 export class ProductAttributeDto {
   @Type(() => Number)
   @IsNumber()
-  attributeId: number;
+  attributeId!: number;
 }
 
 export class VariantAttributeDto {
   @Type(() => Number)
   @IsNumber()
-  attributeId: number;
+  attributeId!: number;
 
   @IsOptional()
   @IsString()
@@ -42,10 +43,18 @@ export class VariantAttributeDto {
   viewOption?: AtttributeViewOption;
 }
 
+/** Product/variant image input — original URL. Size columns filled server-side. */
 export class ImageInputDto {
+  @ValidateIf((o: ImageInputDto) => !o.url?.trim())
   @IsString()
   @IsNotEmpty()
-  url: string;
+  originalUrl?: string;
+
+  /** @deprecated Prefer originalUrl — still accepted for older clients. */
+  @ValidateIf((o: ImageInputDto) => !o.originalUrl?.trim())
+  @IsString()
+  @IsNotEmpty()
+  url?: string;
 
   @Type(() => Number)
   @IsOptional()
@@ -60,17 +69,17 @@ export class CreateVariantDto {
 
   @IsString()
   @IsNotEmpty()
-  name: string;
+  name!: string;
 
   @IsString()
   @IsNotEmpty()
-  slug: string;
+  slug!: string;
 
   @IsNumber()
-  price: number;
+  price!: number;
 
   @IsNumber()
-  stock: number;
+  stock!: number;
 
   @IsOptional()
   @IsString()
@@ -167,11 +176,11 @@ export class CreateProductSeoDto {
 export class CreateProductDto {
   @IsString()
   @IsNotEmpty()
-  productName: string;
+  productName!: string;
 
   @IsString()
   @IsNotEmpty()
-  productSlug: string;
+  productSlug!: string;
 
   @IsString()
   @IsOptional()
@@ -211,7 +220,7 @@ export class CreateProductDto {
   @ArrayMinSize(1, { message: 'At least one variant is required' })
   @ValidateNested({ each: true })
   @Type(() => CreateVariantDto)
-  variants: CreateVariantDto[];
+  variants!: CreateVariantDto[];
 
   @ValidateNested()
   @Type(() => CreateProductSeoDto)
@@ -227,7 +236,7 @@ export class CreateProductDto {
   @ArrayMinSize(1, { message: 'At least one product image is required' })
   @ValidateNested({ each: true })
   @Type(() => ImageInputDto)
-  images: ImageInputDto[];
+  images!: ImageInputDto[];
 
   @IsOptional()
   @IsArray()

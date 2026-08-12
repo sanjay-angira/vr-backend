@@ -6,18 +6,17 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
-import { Product } from './product.entity';
+import { BlogPost } from './blog-posts.entity';
 
-@Entity('product_images')
-export class ProductImage {
+
+
+@Entity('blog_images')
+export class BlogImage {
   @PrimaryGeneratedColumn()
   id!: number;
 
   @Column({ type: 'varchar', length: 2048 })
   originalUrl!: string;
-
-  @Column({ type: 'varchar', length: 512, nullable: true })
-  altText!: string | null;
 
   @Column({ type: 'varchar', length: 2048, nullable: true })
   webp400!: string | null;
@@ -37,13 +36,16 @@ export class ProductImage {
   @Column({ type: 'varchar', length: 2048, nullable: true })
   jpg1200!: string | null;
 
+  @Column({ type: 'varchar', length: 512, nullable: true })
+  altText!: string | null;
+
   @Column({ default: 0 })
   sortOrder!: number;
 
-  @ManyToOne(() => Product, (product) => product.images, {
+  @ManyToOne(() => BlogPost, (blog) => blog.images, {
     onDelete: 'CASCADE',
   })
-  product!: Product;
+  blog!: BlogPost;
 
   @CreateDateColumn({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
   createdAt!: Date;
@@ -54,4 +56,7 @@ export class ProductImage {
     onUpdate: 'CURRENT_TIMESTAMP',
   })
   updatedAt!: Date;
+
 }
+
+

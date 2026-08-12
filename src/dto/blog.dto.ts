@@ -14,12 +14,12 @@ export class BlogFaqDto {
   @ApiProperty({ example: 'What is this spice?' })
   @IsString()
   @IsNotEmpty()
-  question: string;
+  question!: string;
 
   @ApiProperty({ example: 'This is a premium spice from India.' })
   @IsString()
   @IsNotEmpty()
-  answer: string;
+  answer!: string;
 }
 
 export class BlogSeoDto {
@@ -93,34 +93,29 @@ export class CreateBlogDto {
   @ApiProperty({ example: 'My First Blog Post' })
   @IsString()
   @IsNotEmpty()
-  title: string;
+  title!: string;
 
   @ApiPropertyOptional({ example: 'my-first-blog-post' })
   @IsString()
   @IsOptional()
-  slug?: string;
+  slug!: string;
 
   @ApiProperty({ example: '<p>Content here...</p>' })
   @IsString()
   @IsNotEmpty()
-  content: string;
+  content!: string;
 
   @ApiPropertyOptional({ example: 'Short summary' })
   @IsString()
   @IsOptional()
   excerpt?: string;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ description: 'Stored on blog_images.originalUrl' })
   @IsString()
   @IsOptional()
   blogImage?: string;
 
-  @ApiPropertyOptional()
-  @IsString()
-  @IsOptional()
-  thumbnailImage?: string;
-
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ description: 'Stored on blog_images.altText' })
   @IsString()
   @IsOptional()
   blogImageAlt?: string;
@@ -199,17 +194,12 @@ export class UpdateBlogDto {
   @IsOptional()
   excerpt?: string;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ description: 'Stored on blog_images.originalUrl' })
   @IsString()
   @IsOptional()
   blogImage?: string;
 
-  @ApiPropertyOptional()
-  @IsString()
-  @IsOptional()
-  thumbnailImage?: string;
-
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ description: 'Stored on blog_images.altText' })
   @IsString()
   @IsOptional()
   blogImageAlt?: string;
@@ -266,59 +256,56 @@ export class UpdateBlogDto {
 
 export class BlogResponseDto {
   @ApiProperty()
-  id: number;
+  id!: number;
 
   @ApiProperty()
-  title: string;
+  title!: string;
 
   @ApiProperty()
-  slug: string;
+  slug!: string;
 
   @ApiProperty()
-  content: string;
+  content!: string;
 
   @ApiPropertyOptional()
-  excerpt: string;
+  excerpt!: string;
 
   @ApiPropertyOptional()
-  blogImage: string;
+  blogImage!: string;
 
   @ApiPropertyOptional()
-  thumbnailImage: string;
-
-  @ApiPropertyOptional()
-  blogImageAlt: string;
+  blogImageAlt!: string;
 
   @ApiPropertyOptional({ type: [BlogFaqDto] })
-  faqs: BlogFaqDto[];
+  faqs!: BlogFaqDto[];
 
   @ApiProperty()
-  status: string;
+  status!: string;
 
   @ApiPropertyOptional()
-  publishedAt: Date;
+  publishedAt!: Date;
 
   @ApiPropertyOptional()
-  scheduledAt: Date;
+  scheduledAt!: Date;
 
   @ApiProperty()
-  views: number;
+  views!: number;
 
   @ApiProperty()
-  readingTime: number;
+  readingTime!: number;
 
   @ApiPropertyOptional({ type: BlogSeoDto })
-  seo: BlogSeoDto;
+  seo!: BlogSeoDto;
 
   @ApiPropertyOptional()
-  tags: any[];
+  tags!: any[];
 
   @ApiPropertyOptional()
-  category: any;
+  category!: any;
 
   @ApiProperty()
-  createdAt: Date;
+  createdAt!: Date;
 
   @ApiProperty()
-  updatedAt: Date;
+  updatedAt!: Date;
 }

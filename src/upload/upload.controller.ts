@@ -11,16 +11,25 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 import { ApiBody, ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { S3Service } from './s3.service';
+import { ImageOptimizationService } from './image-optimization.service';
 import { DeleteUploadDto } from '../dto/upload.dto';
 import { successResponse } from 'src/commonServices/response.service';
+import { MAX_OPTIMIZED_IMAGE_BYTES } from './image-optimization.types';
+import { collectOptimizedImageUrls } from 'src/commonServices/optimized-image-columns';
 
 @ApiTags('Upload')
 @Controller('upload')
 export class UploadController {
-  constructor(private readonly s3Service: S3Service) {}
+  constructor(
+    private readonly s3Service: S3Service,
+    private readonly imageOptimizationService: ImageOptimizationService,
+  ) {}
 
   @Post()
-  @ApiOperation({ summary: 'Upload a file to S3' })
+  @ApiOperation({
+    summary:
+      'Upload a file to S3. Pass imageType to generate optimized WebP/JPG variants as flat columns.',
+  })
   @ApiConsumes('multipart/form-data')
   @ApiBody({
     schema: {
@@ -28,6 +37,11 @@ export class UploadController {
       properties: {
         file: { type: 'string', format: 'binary' },
         path: { type: 'string', example: 'products/images' },
+        imageType: {
+          type: 'string',
+          enum: ['product', 'category', 'blog', 'banner', 'banner_mobile'],
+        },
+        entityId: { type: 'string' },
       },
       required: ['file'],
     },
@@ -41,9 +55,30 @@ export class UploadController {
   async uploadFile(
     @UploadedFile() file: Express.Multer.File,
     @Body('path') path?: string,
+    @Body('imageType') imageTypeRaw?: string,
+    @Body('entityId') entityId?: string,
   ) {
     if (!file) {
       throw new BadRequestException('File is required');
+    }
+
+    const imageType =
+      this.imageOptimizationService.resolveImageType(imageTypeRaw);
+
+    if (imageType) {
+      if (file.size > MAX_OPTIMIZED_IMAGE_BYTES) {
+        throw new BadRequestException(
+          `Image exceeds maximum size of ${Math.round(MAX_OPTIMIZED_IMAGE_BYTES / (1024 * 1024))}MB`,
+        );
+      }
+
+      const result = await this.imageOptimizationService.processAndUpload(
+        file,
+        imageType,
+        entityId,
+      );
+
+      return successResponse(result, 'Image uploaded and optimized successfully');
     }
 
     const result = await this.s3Service.uploadFile(
@@ -60,6 +95,16 @@ export class UploadController {
   @ApiOperation({ summary: 'Delete an image from S3' })
   async deleteImage(@Body() dto: DeleteUploadDto) {
     await this.s3Service.deleteObject(dto.url, dto.path, dto.key);
+
+    if (dto.variants) {
+      const urls = collectOptimizedImageUrls(dto.variants).filter(
+        (url) => url !== dto.url.trim(),
+      );
+      await Promise.allSettled(
+        urls.map((url) => this.s3Service.deleteObject(url)),
+      );
+    }
+
     return successResponse(true, 'File deleted successfully');
   }
 

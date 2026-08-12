@@ -6,18 +6,15 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
-import { Product } from './product.entity';
+import { Category } from './category.entity';
+@Entity('category_images')
 
-@Entity('product_images')
-export class ProductImage {
+export class CategoryImage {
   @PrimaryGeneratedColumn()
   id!: number;
 
   @Column({ type: 'varchar', length: 2048 })
   originalUrl!: string;
-
-  @Column({ type: 'varchar', length: 512, nullable: true })
-  altText!: string | null;
 
   @Column({ type: 'varchar', length: 2048, nullable: true })
   webp400!: string | null;
@@ -31,19 +28,22 @@ export class ProductImage {
   @Column({ type: 'varchar', length: 2048, nullable: true })
   jpg800!: string | null;
 
-  @Column({ type: 'varchar', length: 2048, nullable: true })
-  webp1200!: string | null;
+  @Column({ type: 'varchar', length: 512, nullable: true })
+  altText!: string | null;
 
   @Column({ type: 'varchar', length: 2048, nullable: true })
-  jpg1200!: string | null;
+  image3d!: string | null;
+
+  @Column({ type: 'varchar', length: 2048, nullable: true })
+  video!: string | null;
 
   @Column({ default: 0 })
   sortOrder!: number;
 
-  @ManyToOne(() => Product, (product) => product.images, {
+  @ManyToOne(() => Category, (category) => category.images, {
     onDelete: 'CASCADE',
   })
-  product!: Product;
+  category!: Category;
 
   @CreateDateColumn({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
   createdAt!: Date;
@@ -54,4 +54,7 @@ export class ProductImage {
     onUpdate: 'CURRENT_TIMESTAMP',
   })
   updatedAt!: Date;
+
 }
+
+

@@ -4,6 +4,8 @@ import { Repository } from 'typeorm';
 import { BlogPost } from 'src/entities/blog/blog-posts.entity';
 import { BlogCategory } from 'src/entities/blog/blog-category.entity';
 import { successResponse } from 'src/commonServices/response.service';
+import { pickOptimizedImageUrl } from 'src/commonServices/image-url.util';
+import { blogImageAlt, blogImageSource } from 'src/commonServices/image-relation.util';
 
 @Injectable()
 export class CustomerBlogService {
@@ -20,29 +22,25 @@ export class CustomerBlogService {
     search?: string;
     categorySlug?: string;
   }) {
-    const parsedPage = Number(query.pageNumber);
-    const parsedSize = Number(query.pageSize);
-    const pageNumber =
-      Number.isFinite(parsedPage) && parsedPage > 0 ? parsedPage : 1;
-    const pageSize =
-      Number.isFinite(parsedSize) && parsedSize > 0
-        ? Math.min(parsedSize, 48)
-        : 12;
+    const pageNumber = Math.max(1, Number(query.pageNumber) || 1);
+    const pageSize = Math.min(50, Math.max(1, Number(query.pageSize) || 12));
     const search = query.search?.trim();
     const categorySlug = query.categorySlug?.trim();
 
     const qb = this.blogRepository
       .createQueryBuilder('blog')
       .leftJoinAndSelect('blog.category', 'category')
-      .leftJoinAndSelect('blog.tags', 'tags')
+      .leftJoinAndSelect('blog.images', 'images')
       .where('blog.isActive = :isActive', { isActive: true })
-      .andWhere('blog.status = :status', { status: 'published' });
+      .andWhere('blog.status = :status', { status: 'published' })
+      .orderBy('blog.publishedAt', 'DESC')
+      .addOrderBy('blog.id', 'DESC')
+      .skip((pageNumber - 1) * pageSize)
+      .take(pageSize);
 
     if (search) {
       qb.andWhere(
-        `(blog.title ILIKE :search
-          OR blog.excerpt ILIKE :search
-          OR blog.slug ILIKE :search)`,
+        '(blog.title ILIKE :search OR blog.excerpt ILIKE :search)',
         { search: `%${search}%` },
       );
     }
@@ -53,11 +51,6 @@ export class CustomerBlogService {
         categoryActive: true,
       });
     }
-
-    qb.orderBy('blog.publishedAt', 'DESC', 'NULLS LAST')
-      .addOrderBy('blog.createdAt', 'DESC')
-      .skip((pageNumber - 1) * pageSize)
-      .take(pageSize);
 
     const [rows, count] = await qb.getManyAndCount();
 
@@ -70,6 +63,19 @@ export class CustomerBlogService {
       },
       'Blogs retrieved successfully',
     );
+  }
+
+  async getBlogBySlug(slug: string) {
+    const blog = await this.blogRepository.findOne({
+      where: { slug, isActive: true, status: 'published' },
+      relations: ['category', 'tags', 'seo', 'images'],
+    });
+
+    if (!blog) {
+      throw new NotFoundException('Blog not found');
+    }
+
+    return successResponse(this.mapDetail(blog), 'Blog retrieved successfully');
   }
 
   async getBlogFilters() {
@@ -90,52 +96,7 @@ export class CustomerBlogService {
     );
   }
 
-  async getBlogBySlug(slug: string) {
-    const normalized = slug?.trim();
-    if (!normalized) {
-      throw new NotFoundException('Blog not found');
-    }
-
-    const blog = await this.blogRepository.findOne({
-      where: {
-        slug: normalized,
-        isActive: true,
-        status: 'published',
-      },
-      relations: ['category', 'tags', 'seo'],
-    });
-
-    if (!blog) {
-      throw new NotFoundException(`Blog with slug "${normalized}" not found`);
-    }
-
-    // Fire-and-forget view increment
-    void this.blogRepository.increment({ id: blog.id }, 'views', 1);
-
-    const related = await this.blogRepository
-      .createQueryBuilder('blog')
-      .leftJoinAndSelect('blog.category', 'category')
-      .where('blog.isActive = :isActive', { isActive: true })
-      .andWhere('blog.status = :status', { status: 'published' })
-      .andWhere('blog.id != :id', { id: blog.id })
-      .andWhere(
-        blog.category?.id ? 'category.id = :categoryId' : '1=1',
-        blog.category?.id ? { categoryId: blog.category.id } : {},
-      )
-      .orderBy('blog.publishedAt', 'DESC', 'NULLS LAST')
-      .take(3)
-      .getMany();
-
-    return successResponse(
-      {
-        ...this.mapDetail(blog),
-        related: related.map((item) => this.mapListCard(item)),
-      },
-      'Blog retrieved successfully',
-    );
-  }
-
-  private formatDate(value: Date | string | null | undefined): string {
+  private formatDate(value: Date | string | null | undefined) {
     if (!value) return '';
     const date = value instanceof Date ? value : new Date(value);
     if (Number.isNaN(date.getTime())) return '';
@@ -147,13 +108,15 @@ export class CustomerBlogService {
   }
 
   private mapListCard(blog: BlogPost) {
+    const source = blogImageSource(blog);
+
     return {
       id: blog.id,
       title: blog.title,
       slug: blog.slug,
       excerpt: blog.excerpt || '',
-      image: blog.thumbnailImage || blog.blogImage || null,
-      imageAlt: blog.blogImageAlt || blog.title,
+      image: pickOptimizedImageUrl(source, 400, 'webp') || null,
+      imageAlt: blogImageAlt(blog, blog.title),
       category: blog.category?.title || 'Blog',
       categorySlug: blog.category?.slug || null,
       date: this.formatDate(blog.publishedAt || blog.createdAt),
@@ -164,15 +127,16 @@ export class CustomerBlogService {
   }
 
   private mapDetail(blog: BlogPost) {
+    const main = blogImageSource(blog);
+
     return {
       id: blog.id,
       title: blog.title,
       slug: blog.slug,
       excerpt: blog.excerpt || '',
       content: blog.content || '',
-      image: blog.blogImage || blog.thumbnailImage || null,
-      thumbnailImage: blog.thumbnailImage || null,
-      imageAlt: blog.blogImageAlt || blog.title,
+      image: pickOptimizedImageUrl(main, 1200, 'webp') || null,
+      imageAlt: blogImageAlt(blog, blog.title),
       category: blog.category
         ? {
             id: blog.category.id,
@@ -187,20 +151,9 @@ export class CustomerBlogService {
       })),
       faqs: Array.isArray(blog.faqs) ? blog.faqs : [],
       date: this.formatDate(blog.publishedAt || blog.createdAt),
-      publishedAt: blog.publishedAt,
       readingTime: blog.readingTime || 0,
-      views: blog.views || 0,
       isFeatured: Boolean(blog.isFeatured),
-      seo: blog.seo
-        ? {
-            metaTitle: blog.seo.metaTitle || null,
-            metaDescription: blog.seo.metaDescription || null,
-            canonicalUrl: blog.seo.canonicalUrl || null,
-            ogTitle: blog.seo.ogTitle || null,
-            ogDescription: blog.seo.ogDescription || null,
-            ogImage: blog.seo.ogImage || null,
-          }
-        : null,
+      seo: blog.seo || null,
     };
   }
 }

@@ -3,10 +3,12 @@ import {
   PrimaryGeneratedColumn,
   Column,
   ManyToOne,
+  OneToMany,
   CreateDateColumn,
   UpdateDateColumn,
 } from 'typeorm';
 import { CmsSection } from './cmsSettings.entity';
+import { BannerImage } from './banner-image.entity';
 
 @Entity('banners')
 export class Banner {
@@ -19,12 +21,6 @@ export class Banner {
   @Column({ nullable: true })
   subtitle!: string;
 
-  @Column()
-  image!: string;
-
-  @Column({ nullable: true })
-  mobileImage!: string;
-
   @Column({ nullable: true })
   bannerLink!: string;
 
@@ -33,6 +29,9 @@ export class Banner {
 
   @Column({ default: true })
   status!: boolean;
+
+  @OneToMany(() => BannerImage, (image) => image.banner, { cascade: true })
+  images!: BannerImage[];
 
   @ManyToOne(() => CmsSection, (section) => section.banners, {
     onDelete: 'SET NULL',

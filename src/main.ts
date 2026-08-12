@@ -2,8 +2,34 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
+import { DataSource } from 'typeorm';
+import { renameProductImageUrlColumns } from './commonServices/rename-product-image-url';
+
+async function prepareImageUrlColumns() {
+  const prep = new DataSource({
+    type: 'postgres',
+    host: process.env.DB_HOST,
+    port: parseInt(process.env.DB_PORT || '5432', 10),
+    username: process.env.DB_USERNAME,
+    password: process.env.DB_PASSWORD,
+    database: process.env.DB_DATABASE,
+    synchronize: false,
+    entities: [],
+  });
+
+  await prep.initialize();
+  try {
+    await renameProductImageUrlColumns(prep);
+  } finally {
+    await prep.destroy();
+  }
+}
 
 async function bootstrap() {
+  // Must run before TypeORM synchronize — otherwise Nest may DROP+ADD
+  // originalUrl as NOT NULL and fail on existing variant/product image rows.
+  await prepareImageUrlColumns();
+
   const app = await NestFactory.create(AppModule, { rawBody: true });
 
   app.enableCors({

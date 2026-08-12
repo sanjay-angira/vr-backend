@@ -39,7 +39,6 @@ export class BlogController {
           excerpt:
             'A deep dive into the world of Indian spices and their traditional uses.',
           blogImage: 'https://example.com/images/indian-spices.jpg',
-          thumbnailImage: 'https://example.com/images/indian-spices-thumb.jpg',
           blogImageAlt: 'Variety of Indian spices in bowls',
           faqs: [
             {
@@ -113,7 +112,6 @@ export class BlogController {
           excerpt:
             'A deep dive into the world of Indian spices and their traditional uses.',
           blogImage: 'https://example.com/images/indian-spices.jpg',
-          thumbnailImage: 'https://example.com/images/indian-spices-thumb.jpg',
           blogImageAlt: 'Variety of Indian spices in bowls',
           faqs: [
             {

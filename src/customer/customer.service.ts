@@ -21,6 +21,14 @@ import {
   CmsSection,
   CmsSectionType,
 } from 'src/entities/CMS/cmsSettings.entity';
+import { pickOptimizedImageUrl } from 'src/commonServices/image-url.util';
+import {
+  bannerImageSource,
+  categoryImageAlt,
+  categoryImageSource,
+  pickProductCardImage,
+} from 'src/commonServices/image-relation.util';
+import { BannerImageRole } from 'src/entities/CMS/banner-image.entity';
 import { Order } from 'src/entities/order/order.entity';
 import { OrderItem } from 'src/entities/order/order-item.entity';
 import { OrderShippingAddress } from 'src/entities/order/order-shipping-address';
@@ -376,6 +384,7 @@ export class CustomerService {
   async getStoreCategories() {
     const categories = await this.categoryRepository
       .createQueryBuilder('category')
+      .leftJoinAndSelect('category.images', 'images')
       .where('category.isActive = :isActive', { isActive: true })
       .andWhere('category.publishStatus = :publishStatus', {
         publishStatus: 'published',
@@ -398,8 +407,8 @@ export class CustomerService {
           name: category.categoryName,
           slug: category.categorySlug,
           description: category.shortDescription || category.description || '',
-          image: category.image || null,
-          imageAlt: category.imageAltText || category.categoryName,
+          image: pickOptimizedImageUrl(categoryImageSource(category), 400, 'webp'),
+          imageAlt: categoryImageAlt(category, category.categoryName),
           productCount,
           href: category.categorySlug
             ? `/products?category=${encodeURIComponent(category.categorySlug)}`
@@ -420,6 +429,7 @@ export class CustomerService {
         this.categoryRepository
           .createQueryBuilder('category')
           .leftJoinAndSelect('category.parent', 'parent')
+          .leftJoinAndSelect('category.images', 'images')
           .where('category.isActive = :isActive', { isActive: true })
           .andWhere('category.publishStatus = :publishStatus', {
             publishStatus: 'published',
@@ -438,6 +448,7 @@ export class CustomerService {
           .getRawOne<{ minPrice: string | null; maxPrice: string | null }>(),
         this.bannerRepository.find({
           where: { status: true },
+          relations: ['images'],
           order: { position: 'ASC', id: 'ASC' },
           take: 8,
         }),
@@ -492,7 +503,7 @@ export class CustomerService {
           id: category.id,
           name: category.categoryName,
           slug: category.categorySlug,
-          image: category.image || null,
+          image: pickOptimizedImageUrl(categoryImageSource(category), 400, 'webp') || null,
           parentId: category.parent?.id ?? null,
         })),
         priceRange: { min: minPrice, max: maxPrice },
@@ -515,8 +526,16 @@ export class CustomerService {
           id: banner.id,
           title: banner.title,
           subtitle: banner.subtitle || '',
-          image: banner.image,
-          mobileImage: banner.mobileImage || banner.image,
+          image: pickOptimizedImageUrl(
+            bannerImageSource(banner, BannerImageRole.DESKTOP),
+            1920,
+            'webp',
+          ),
+          mobileImage: pickOptimizedImageUrl(
+            bannerImageSource(banner, BannerImageRole.MOBILE),
+            1200,
+            'webp',
+          ),
           link: banner.bannerLink || '/shop',
         })),
       },
@@ -810,7 +829,7 @@ export class CustomerService {
       sku: variant.sku || null,
       stock: Number(variant.stock),
       inStock: Number(variant.stock) > 0,
-      image: selectedImages[0]?.url || null,
+      image: pickProductCardImage(selectedImages[0], 400),
       images: selectedImages,
       originalPrice: pricing.originalPrice,
       finalPrice: pricing.finalPrice,
@@ -965,7 +984,7 @@ export class CustomerService {
             shortDescription: item.shortDescription,
             image:
               item.images?.slice().sort((a, b) => a.sortOrder - b.sortOrder)[0]
-                ?.url || null,
+                ?.originalUrl || null,
             price:
               item.variants
                 ?.map((variant) => Number(variant.price))
@@ -1197,12 +1216,12 @@ export class CustomerService {
       if (variant?.images?.length) {
         image =
           [...variant.images].sort((a, b) => a.sortOrder - b.sortOrder)[0]
-            ?.url || null;
+            ?.originalUrl || null;
       } else if (variant?.product?.images?.length) {
         image =
           [...variant.product.images].sort(
             (a, b) => a.sortOrder - b.sortOrder,
-          )[0]?.url || null;
+          )[0]?.originalUrl || null;
       }
 
       items.push({

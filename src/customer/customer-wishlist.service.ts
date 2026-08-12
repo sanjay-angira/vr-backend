@@ -10,6 +10,8 @@ import {
   errorResponse,
 } from 'src/commonServices/response.service';
 import { OfferPricingService } from 'src/commonServices/offer-pricing.service';
+import { pickOptimizedImageUrl } from 'src/commonServices/image-url.util';
+import { productImageSource } from 'src/commonServices/image-relation.util';
 import { WishlistItem } from 'src/entities/wishlist/wishlist-item.entity';
 import { User } from 'src/entities/user/user.entity';
 import { ProductVariant } from 'src/entities/product/product-variants.entity';
@@ -36,17 +38,24 @@ export class CustomerWishlistService {
   }
 
   private resolvePrimaryImage(variant: ProductVariant | null): string | null {
+    const primary = this.resolvePrimaryImageAsset(variant);
+    if (!primary) return null;
+    return pickOptimizedImageUrl(productImageSource(primary), 400, 'webp') || null;
+  }
+
+  private resolvePrimaryImageAsset(
+    variant: ProductVariant | null,
+  ): import('src/entities/product/product-images.entity').ProductImage | import('src/entities/product/variant-image.entity').VariantImage | null {
     if (variant?.images?.length) {
       return (
-        [...variant.images].sort((a, b) => a.sortOrder - b.sortOrder)[0]
-          ?.url || null
+        [...variant.images].sort((a, b) => a.sortOrder - b.sortOrder)[0] || null
       );
     }
 
     if (variant?.product?.images?.length) {
       return (
-        [...variant.product.images].sort((a, b) => a.sortOrder - b.sortOrder)[0]
-          ?.url || null
+        [...variant.product.images].sort((a, b) => a.sortOrder - b.sortOrder)[0] ||
+        null
       );
     }
 

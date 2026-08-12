@@ -14,6 +14,7 @@ import { CategorySeo } from './category-seo.entity';
 import { Offer } from '../product/offer.entity';
 import { CategoryAttribute } from './category-attribute.entity';
 import { CmsSection } from '../CMS/cmsSettings.entity';
+import { CategoryImage } from './category-image.entity';
 
 @Entity('categories')
 export class Category {
@@ -40,25 +41,18 @@ export class Category {
   publishStatus!: string;
 
   @Column({ type: 'varchar', length: 255, nullable: true })
-  image!: string;
-
-  @Column({ type: 'varchar', length: 255, nullable: true })
-  image3d!: string;
-
-  @Column({ type: 'varchar', length: 255, nullable: true })
-  video!: string;
-
-  @Column({ type: 'varchar', length: 255, nullable: true })
   icon!: string;
-
-  @Column({ type: 'varchar', length: 255, nullable: true })
-  imageAltText!: string;
 
   @Column({ type: 'boolean', default: true })
   isActive!: boolean;
 
   @Column({ type: 'boolean', default: false })
   showOnHomePage!: boolean;
+
+  @OneToMany(() => CategoryImage, (image) => image.category, {
+    cascade: true,
+  })
+  images!: CategoryImage[];
 
   @OneToOne(() => CategorySeo, (seo) => seo.category, {
     cascade: true,
