@@ -23,14 +23,12 @@ import {
 export class ImageOptimizationService {
   private readonly logger = new Logger(ImageOptimizationService.name);
   private readonly webpQualityOverride: number | null;
-  private readonly jpgQualityOverride: number | null;
 
   constructor(
     private readonly s3Service: S3Service,
     private readonly configService: ConfigService,
   ) {
     this.webpQualityOverride = this.readQualityEnv('IMAGE_WEBP_QUALITY');
-    this.jpgQualityOverride = this.readQualityEnv('IMAGE_JPG_QUALITY');
   }
 
   isSupportedImageMime(mimeType?: string): boolean {
@@ -85,6 +83,21 @@ export class ImageOptimizationService {
       '',
     );
     const baseFolder = `${preset.folder}/${assetId}`;
+    const webpQuality = this.webpQualityOverride ?? preset.webpQuality;
+
+    // Banner / blog / category: store a single WebP file only.
+    if (preset.webpOnly) {
+      return this.processWebpOnlyUpload(
+        file,
+        baseFolder,
+        assetId,
+        width,
+        height,
+        preset.widths,
+        webpQuality,
+      );
+    }
+
     const originalExt = this.resolveOriginalExtension(
       file.originalname,
       file.mimetype,
@@ -99,46 +112,28 @@ export class ImageOptimizationService {
       file.mimetype || `image/${originalExt === 'jpg' ? 'jpeg' : originalExt}`,
     );
 
-    const webpQuality = this.webpQualityOverride ?? preset.webpQuality;
-    const jpgQuality = this.jpgQualityOverride ?? preset.jpgQuality;
     const columns = buildFlatAssetBase(originalUpload.Location);
     const uniqueWidths = this.resolveTargetWidths(preset.widths, width);
 
+    // Product: keep original + resized WebP variants.
     try {
       for (const targetWidth of uniqueWidths) {
-        const resized = sharp(file.buffer).resize({
-          width: targetWidth,
-          fit: 'inside',
-          withoutEnlargement: true,
-        });
+        const webpBuffer = await sharp(file.buffer)
+          .resize({
+            width: targetWidth,
+            fit: 'inside',
+            withoutEnlargement: true,
+          })
+          .webp({ quality: webpQuality, effort: 4 })
+          .toBuffer();
 
-        const [webpBuffer, jpgBuffer] = await Promise.all([
-          resized
-            .clone()
-            .webp({ quality: webpQuality, effort: 4 })
-            .toBuffer(),
-          resized
-            .clone()
-            .jpeg({ quality: jpgQuality, progressive: true, mozjpeg: true })
-            .toBuffer(),
-        ]);
-
-        const sizeFolder = `${baseFolder}/${targetWidth}`;
-        const [webpUpload, jpgUpload] = await Promise.all([
-          this.s3Service.uploadBuffer(
-            webpBuffer,
-            `${sizeFolder}/image.webp`,
-            'image/webp',
-          ),
-          this.s3Service.uploadBuffer(
-            jpgBuffer,
-            `${sizeFolder}/image.jpg`,
-            'image/jpeg',
-          ),
-        ]);
+        const webpUpload = await this.s3Service.uploadBuffer(
+          webpBuffer,
+          `${baseFolder}/${targetWidth}/image.webp`,
+          'image/webp',
+        );
 
         setColumnForWidth(columns, targetWidth, 'webp', webpUpload.Location);
-        setColumnForWidth(columns, targetWidth, 'jpg', jpgUpload.Location);
       }
     } catch (error) {
       const message =
@@ -172,6 +167,62 @@ export class ImageOptimizationService {
       width,
       height,
     };
+  }
+
+  /** Convert upload to a single .webp and return that as Location. */
+  private async processWebpOnlyUpload(
+    file: Express.Multer.File,
+    baseFolder: string,
+    assetId: string,
+    width: number,
+    height: number,
+    widths: number[],
+    webpQuality: number,
+  ): Promise<OptimizedImageAsset> {
+    const maxWidth = Math.max(...widths);
+    const targetWidth = Math.min(maxWidth, width);
+    const fileName = `${Date.now()}-${this.sanitizeFileName(file.originalname, 'webp').replace(/\.[^.]+$/, '')}.webp`;
+    const objectKey = `${baseFolder}/${fileName}`;
+
+    try {
+      const webpBuffer = await sharp(file.buffer)
+        .resize({
+          width: targetWidth,
+          fit: 'inside',
+          withoutEnlargement: true,
+        })
+        .webp({ quality: webpQuality, effort: 4 })
+        .toBuffer();
+
+      const upload = await this.s3Service.uploadBuffer(
+        webpBuffer,
+        objectKey,
+        'image/webp',
+      );
+
+      const columns = buildFlatAssetBase(upload.Location);
+      return {
+        ...columns,
+        original: upload.Location,
+        Location: upload.Location,
+        Key: upload.Key,
+        Bucket: upload.Bucket,
+        ETag: upload.ETag,
+        assetId,
+        width,
+        height,
+      };
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Unknown processing error';
+      this.logger.error(
+        `WebP-only upload failed: ${message}`,
+        error instanceof Error ? error.stack : undefined,
+      );
+      throw new InternalServerErrorException(
+        `Failed to process image: ${message}`,
+      );
+    }
   }
 
   async processBufferAndUpload(

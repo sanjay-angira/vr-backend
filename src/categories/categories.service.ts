@@ -3,7 +3,6 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { IsNull, Repository } from 'typeorm';
 import { Category } from '../entities/productCategory/category.entity';
 import { CategorySeo } from '../entities/productCategory/category-seo.entity';
-import { CategoryImage } from '../entities/productCategory/category-image.entity';
 import { Product } from '../entities/product/product.entity';
 import { UtilityService } from 'src/commonServices/utility.service';
 import {
@@ -13,14 +12,6 @@ import {
 import { IdDto, PaginationDto } from 'src/dto/common.dto';
 import { CreateCategoryDto, UpdateCategoryDto } from 'src/dto/category.dto';
 import { Offer } from 'src/entities/product/offer.entity';
-import { resolveImageAsset } from 'src/commonServices/image-asset.util';
-
-type CategoryMediaInput = {
-  image?: string | null;
-  image3d?: string | null;
-  video?: string | null;
-  imageAltText?: string | null;
-};
 
 @Injectable()
 export class CategoriesService {
@@ -29,97 +20,12 @@ export class CategoriesService {
     private readonly categoryRepo: Repository<Category>,
     @InjectRepository(CategorySeo)
     private readonly categorySeoRepo: Repository<CategorySeo>,
-    @InjectRepository(CategoryImage)
-    private readonly categoryImageRepo: Repository<CategoryImage>,
     @InjectRepository(Product)
     private readonly productsRepo: Repository<Product>,
     @InjectRepository(Offer)
     private readonly offerRepo: Repository<Offer>,
     private readonly utilityService: UtilityService,
   ) {}
-
-  /** Flatten primary CategoryImage onto response for admin/legacy clients. */
-  private presentCategory(category: Category) {
-    const img = [...(category.images || [])].sort(
-      (a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0),
-    )[0];
-
-    return {
-      ...category,
-      image: img?.originalUrl ?? null,
-      image3d: img?.image3d ?? null,
-      video: img?.video ?? null,
-      imageAltText: img?.altText ?? null,
-    };
-  }
-
-  private async upsertCategoryMedia(
-    categoryId: number,
-    input: CategoryMediaInput,
-  ) {
-    const hasMediaUpdate =
-      input.image !== undefined ||
-      input.image3d !== undefined ||
-      input.video !== undefined ||
-      input.imageAltText !== undefined;
-
-    if (!hasMediaUpdate) return;
-
-    let row = await this.categoryImageRepo.findOne({
-      where: { category: { id: categoryId } },
-      order: { sortOrder: 'ASC', id: 'ASC' },
-    });
-
-    const resolved =
-      input.image !== undefined
-        ? resolveImageAsset(input.image, null)
-        : null;
-
-    if (!row) {
-      if (!resolved?.originalUrl) {
-        // No primary image yet — nothing to attach 3d/video/alt to.
-        return;
-      }
-      row = this.categoryImageRepo.create({
-        category: { id: categoryId } as Category,
-        originalUrl: resolved.originalUrl,
-        webp400: resolved.webp400 ?? null,
-        jpg400: resolved.jpg400 ?? null,
-        webp800: resolved.webp800 ?? null,
-        jpg800: resolved.jpg800 ?? null,
-        altText: input.imageAltText ?? null,
-        image3d: input.image3d ?? null,
-        video: input.video ?? null,
-        sortOrder: 0,
-      });
-      await this.categoryImageRepo.save(row);
-      return;
-    }
-
-    if (resolved?.originalUrl) {
-      row.originalUrl = resolved.originalUrl;
-      row.webp400 = resolved.webp400 ?? null;
-      row.jpg400 = resolved.jpg400 ?? null;
-      row.webp800 = resolved.webp800 ?? null;
-      row.jpg800 = resolved.jpg800 ?? null;
-    } else if (input.image === null || input.image === '') {
-      // Clearing the main image removes the media row.
-      await this.categoryImageRepo.delete({ id: row.id });
-      return;
-    }
-
-    if (input.imageAltText !== undefined) {
-      row.altText = input.imageAltText;
-    }
-    if (input.image3d !== undefined) {
-      row.image3d = input.image3d;
-    }
-    if (input.video !== undefined) {
-      row.video = input.video;
-    }
-
-    await this.categoryImageRepo.save(row);
-  }
 
   async create(createCategoryDto: CreateCategoryDto) {
     const {
@@ -133,7 +39,6 @@ export class CategoriesService {
       image,
       seo,
       publishStatus,
-      image3d,
       video,
       icon,
       imageAltText,
@@ -162,6 +67,9 @@ export class CategoriesService {
         description,
         isActive: isActive ?? true,
         publishStatus,
+        image: image ?? null,
+        imageAltText: imageAltText ?? null,
+        video: video ?? null,
         icon,
         showOnHomePage,
         parent,
@@ -174,23 +82,12 @@ export class CategoriesService {
 
       const result = await this.categoryRepo.save(category);
 
-      await this.upsertCategoryMedia(result.id, {
-        image,
-        image3d,
-        video,
-        imageAltText,
-      });
-
       const fullResult = await this.categoryRepo.findOne({
         where: { id: result.id },
-        relations: ['parent', 'categoryOffers', 'seo', 'images'],
+        relations: ['parent', 'categoryOffers', 'seo'],
       });
 
-      return successResponse(
-        fullResult ? this.presentCategory(fullResult) : fullResult,
-        'Category created',
-        201,
-      );
+      return successResponse(fullResult, 'Category created', 201);
     } catch (error) {
       throw error;
     }
@@ -219,7 +116,6 @@ export class CategoriesService {
         .leftJoinAndSelect('category.parent', 'parent')
         .leftJoinAndSelect('category.categoryOffers', 'categoryOffers')
         .leftJoinAndSelect('category.seo', 'seo')
-        .leftJoinAndSelect('category.images', 'images')
         .orderBy(`category.${column}`, order as 'ASC' | 'DESC')
         .skip(skip)
         .take(Number(limit));
@@ -232,10 +128,7 @@ export class CategoriesService {
       }
 
       const [rows, count] = await qb.getManyAndCount();
-      return successResponse(
-        { rows: rows.map((row) => this.presentCategory(row)), count },
-        'Categories fetched',
-      );
+      return successResponse({ rows, count }, 'Categories fetched');
     } catch (error) {
       throw error;
     }
@@ -245,10 +138,10 @@ export class CategoriesService {
     try {
       const category = await this.categoryRepo.findOne({
         where: { id },
-        relations: ['parent', 'categoryOffers', 'seo', 'images'],
+        relations: ['parent', 'categoryOffers', 'seo'],
       });
       if (!category) throw new NotFoundException('Category not found');
-      return successResponse(this.presentCategory(category), 'Category fetched');
+      return successResponse(category, 'Category fetched');
     } catch (error) {
       throw error;
     }
@@ -266,7 +159,6 @@ export class CategoriesService {
       image,
       seo,
       publishStatus,
-      image3d,
       video,
       icon,
       imageAltText,
@@ -275,7 +167,7 @@ export class CategoriesService {
     try {
       const category = await this.categoryRepo.findOne({
         where: { id },
-        relations: ['categoryOffers', 'seo', 'images'],
+        relations: ['categoryOffers', 'seo'],
       });
       if (!category) throw new NotFoundException('Category not found');
 
@@ -301,6 +193,9 @@ export class CategoriesService {
       if (icon !== undefined) category.icon = icon;
       if (showOnHomePage !== undefined)
         category.showOnHomePage = showOnHomePage;
+      if (image !== undefined) category.image = image;
+      if (imageAltText !== undefined) category.imageAltText = imageAltText;
+      if (video !== undefined) category.video = video;
 
       if (seo) {
         if (category.seo) {
@@ -324,22 +219,12 @@ export class CategoriesService {
 
       await this.categoryRepo.save(category);
 
-      await this.upsertCategoryMedia(id, {
-        image,
-        image3d,
-        video,
-        imageAltText,
-      });
-
       const fullResult = await this.categoryRepo.findOne({
         where: { id },
-        relations: ['parent', 'categoryOffers', 'seo', 'images'],
+        relations: ['parent', 'categoryOffers', 'seo'],
       });
 
-      return successResponse(
-        fullResult ? this.presentCategory(fullResult) : fullResult,
-        'Category updated',
-      );
+      return successResponse(fullResult, 'Category updated');
     } catch (error) {
       throw error;
     }
@@ -376,23 +261,15 @@ export class CategoriesService {
     if (!parentId) {
       const category = await this.categoryRepo.find({
         where: { parent: IsNull() },
-        relations: ['images'],
         order: { id: 'ASC' },
       });
-      return successResponse(
-        category.map((row) => this.presentCategory(row)),
-        'Categories fetched',
-      );
+      return successResponse(category, 'Categories fetched');
     }
 
     const category = await this.categoryRepo.find({
       where: { parent: { id: parentId } },
-      relations: ['images'],
       order: { id: 'ASC' },
     });
-    return successResponse(
-      category.map((row) => this.presentCategory(row)),
-      'Categories fetched',
-    );
+    return successResponse(category, 'Categories fetched');
   }
 }

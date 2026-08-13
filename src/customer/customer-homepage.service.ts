@@ -16,7 +16,6 @@ import {
   categoryImageSource,
   pickProductCardImage,
 } from 'src/commonServices/image-relation.util';
-import { BannerImageRole } from 'src/entities/CMS/banner-image.entity';
 
 @Injectable()
 export class CustomerHomepageService {
@@ -302,8 +301,7 @@ export class CustomerHomepageService {
         isActive: true,
         publishStatus: 'published',
       },
-      relations: ['images'],
-      loadEagerRelations: false,
+      relations: [],
       order: { id: 'ASC' },
       take: limit,
     });
@@ -312,7 +310,7 @@ export class CustomerHomepageService {
       id: category.id,
       name: category.categoryName,
       description: category.shortDescription || category.description || '',
-      image: pickOptimizedImageUrl(categoryImageSource(category), 400, 'webp'),
+      image: pickOptimizedImageUrl(categoryImageSource(category), 400),
       slug: category.categorySlug,
       href: category.categorySlug
         ? `/products?category=${encodeURIComponent(category.categorySlug)}`
@@ -327,7 +325,7 @@ export class CustomerHomepageService {
         isActive: true,
         status: 'published',
       },
-      relations: ['category', 'images'],
+      relations: ['category'],
       loadEagerRelations: false,
       order: { publishedAt: 'DESC', id: 'DESC' },
       take: limit,
@@ -340,7 +338,7 @@ export class CustomerHomepageService {
         id: blog.id,
         title: blog.title,
         excerpt: blog.excerpt || '',
-        image: pickOptimizedImageUrl(source, 400, 'webp'),
+        image: pickOptimizedImageUrl(source, 400),
         category: blog.category?.title || '',
         date: blog.publishedAt
           ? new Date(blog.publishedAt).toLocaleDateString('en-IN', {
@@ -360,7 +358,7 @@ export class CustomerHomepageService {
         section: { id: sectionId },
         status: true,
       },
-      relations: ['images'],
+      relations: [],
       order: { position: 'ASC', id: 'ASC' },
       take: limit,
     });
@@ -370,14 +368,12 @@ export class CustomerHomepageService {
       title: banner.title,
       subtitle: banner.subtitle || '',
       image: pickOptimizedImageUrl(
-        bannerImageSource(banner, BannerImageRole.DESKTOP),
+        bannerImageSource(banner, 'desktop'),
         1920,
-        'webp',
       ),
       mobileImage: pickOptimizedImageUrl(
-        bannerImageSource(banner, BannerImageRole.MOBILE),
+        bannerImageSource(banner, 'mobile'),
         1200,
-        'webp',
       ),
       link: banner.bannerLink || '/shop',
     }));

@@ -126,7 +126,7 @@ export class CreateCategoryDto {
 
   @ApiPropertyOptional({
     example: 'https://example.com/images/spices.jpg',
-    description: 'Original image URL → category_images.originalUrl (+ derived sizes)',
+    description: 'Category image URL (uploaded as WebP)',
   })
   @IsOptional()
   @IsString()
@@ -140,12 +140,7 @@ export class CreateCategoryDto {
   @IsString()
   publishStatus?: string;
 
-  @ApiPropertyOptional({ description: 'Stored on category_images.image3d' })
-  @IsOptional()
-  @IsString()
-  image3d?: string;
-
-  @ApiPropertyOptional({ description: 'Stored on category_images.video' })
+  @ApiPropertyOptional({ description: 'Video URL on category' })
   @IsOptional()
   @IsString()
   video?: string;
@@ -155,7 +150,7 @@ export class CreateCategoryDto {
   @IsString()
   icon?: string;
 
-  @ApiPropertyOptional({ description: 'Stored on category_images.altText' })
+  @ApiPropertyOptional({ description: 'Image alt text on category' })
   @IsOptional()
   @IsString()
   imageAltText?: string;
@@ -210,7 +205,7 @@ export class UpdateCategoryDto {
   isActive?: boolean;
 
   @ApiPropertyOptional({
-    description: 'Original image URL → category_images.originalUrl (+ derived sizes)',
+    description: 'Category image URL (uploaded as WebP)',
   })
   @IsOptional()
   @IsString()
@@ -227,12 +222,7 @@ export class UpdateCategoryDto {
   @IsString()
   publishStatus?: string;
 
-  @ApiPropertyOptional({ description: 'Stored on category_images.image3d' })
-  @IsOptional()
-  @IsString()
-  image3d?: string | null;
-
-  @ApiPropertyOptional({ description: 'Stored on category_images.video' })
+  @ApiPropertyOptional({ description: 'Video URL on category' })
   @IsOptional()
   @IsString()
   video?: string | null;
@@ -242,7 +232,7 @@ export class UpdateCategoryDto {
   @IsString()
   icon?: string;
 
-  @ApiPropertyOptional({ description: 'Stored on category_images.altText' })
+  @ApiPropertyOptional({ description: 'Image alt text on category' })
   @IsOptional()
   @IsString()
   imageAltText?: string | null;

@@ -40,7 +40,7 @@ export class CustomerWishlistService {
   private resolvePrimaryImage(variant: ProductVariant | null): string | null {
     const primary = this.resolvePrimaryImageAsset(variant);
     if (!primary) return null;
-    return pickOptimizedImageUrl(productImageSource(primary), 400, 'webp') || null;
+    return pickOptimizedImageUrl(productImageSource(primary), 400) || null;
   }
 
   private resolvePrimaryImageAsset(

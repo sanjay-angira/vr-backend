@@ -28,7 +28,6 @@ import {
   categoryImageSource,
   pickProductCardImage,
 } from 'src/commonServices/image-relation.util';
-import { BannerImageRole } from 'src/entities/CMS/banner-image.entity';
 import { Order } from 'src/entities/order/order.entity';
 import { OrderItem } from 'src/entities/order/order-item.entity';
 import { OrderShippingAddress } from 'src/entities/order/order-shipping-address';
@@ -384,7 +383,6 @@ export class CustomerService {
   async getStoreCategories() {
     const categories = await this.categoryRepository
       .createQueryBuilder('category')
-      .leftJoinAndSelect('category.images', 'images')
       .where('category.isActive = :isActive', { isActive: true })
       .andWhere('category.publishStatus = :publishStatus', {
         publishStatus: 'published',
@@ -407,7 +405,7 @@ export class CustomerService {
           name: category.categoryName,
           slug: category.categorySlug,
           description: category.shortDescription || category.description || '',
-          image: pickOptimizedImageUrl(categoryImageSource(category), 400, 'webp'),
+          image: pickOptimizedImageUrl(categoryImageSource(category), 400),
           imageAlt: categoryImageAlt(category, category.categoryName),
           productCount,
           href: category.categorySlug
@@ -429,7 +427,6 @@ export class CustomerService {
         this.categoryRepository
           .createQueryBuilder('category')
           .leftJoinAndSelect('category.parent', 'parent')
-          .leftJoinAndSelect('category.images', 'images')
           .where('category.isActive = :isActive', { isActive: true })
           .andWhere('category.publishStatus = :publishStatus', {
             publishStatus: 'published',
@@ -448,7 +445,6 @@ export class CustomerService {
           .getRawOne<{ minPrice: string | null; maxPrice: string | null }>(),
         this.bannerRepository.find({
           where: { status: true },
-          relations: ['images'],
           order: { position: 'ASC', id: 'ASC' },
           take: 8,
         }),
@@ -503,7 +499,7 @@ export class CustomerService {
           id: category.id,
           name: category.categoryName,
           slug: category.categorySlug,
-          image: pickOptimizedImageUrl(categoryImageSource(category), 400, 'webp') || null,
+          image: pickOptimizedImageUrl(categoryImageSource(category), 400) || null,
           parentId: category.parent?.id ?? null,
         })),
         priceRange: { min: minPrice, max: maxPrice },
@@ -527,14 +523,12 @@ export class CustomerService {
           title: banner.title,
           subtitle: banner.subtitle || '',
           image: pickOptimizedImageUrl(
-            bannerImageSource(banner, BannerImageRole.DESKTOP),
+            bannerImageSource(banner, 'desktop'),
             1920,
-            'webp',
           ),
           mobileImage: pickOptimizedImageUrl(
-            bannerImageSource(banner, BannerImageRole.MOBILE),
+            bannerImageSource(banner, 'mobile'),
             1200,
-            'webp',
           ),
           link: banner.bannerLink || '/shop',
         })),

@@ -1,13 +1,12 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
-  IsInt,
   IsNotEmpty,
   IsOptional,
   IsString,
   IsObject,
 } from 'class-validator';
 
-/** Flat optimized URL columns — no nested JSON sizes. */
+/** Flat optimized URL columns — original + WebP sizes only. */
 export class OptimizedImageColumnsDto {
   @ApiPropertyOptional()
   @IsOptional()
@@ -22,17 +21,7 @@ export class OptimizedImageColumnsDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
-  jpg400?: string | null;
-
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsString()
   webp800?: string | null;
-
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsString()
-  jpg800?: string | null;
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -42,27 +31,12 @@ export class OptimizedImageColumnsDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
-  jpg1200?: string | null;
-
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsString()
   webp1440?: string | null;
 
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
-  jpg1440?: string | null;
-
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsString()
   webp1920?: string | null;
-
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsString()
-  jpg1920?: string | null;
 }
 
 export class DeleteUploadDto {

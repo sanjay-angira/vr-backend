@@ -4,6 +4,7 @@ import { ValidationPipe } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { DataSource } from 'typeorm';
 import { renameProductImageUrlColumns } from './commonServices/rename-product-image-url';
+import { migrateCmsImagesOntoParents } from './commonServices/migrate-cms-images-onto-parents';
 
 async function prepareImageUrlColumns() {
   const prep = new DataSource({
@@ -20,6 +21,7 @@ async function prepareImageUrlColumns() {
   await prep.initialize();
   try {
     await renameProductImageUrlColumns(prep);
+    await migrateCmsImagesOntoParents(prep);
   } finally {
     await prep.destroy();
   }
@@ -37,6 +39,7 @@ async function bootstrap() {
       'http://localhost:3000',
       'http://localhost:3001',
       'http://localhost:3002',
+      'http://localhost:4200',
       'https://vrindavanrasa.com',
       'https://www.vrindavanrasa.com',
     ],

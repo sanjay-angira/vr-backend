@@ -8,13 +8,11 @@ import {
   ManyToMany,
   JoinTable,
   OneToOne,
-  OneToMany,
 } from 'typeorm';
 import { BlogTag } from './blog-tag.entity';
 import { BlogCategory } from './blog-category.entity';
 import { BlogSeo } from './blog-seo.entity';
 import { CmsSection } from '../CMS/cmsSettings.entity';
-import { BlogImage } from './blog-image.entity';
 
 @Entity('blog_posts')
 export class BlogPost {
@@ -32,6 +30,13 @@ export class BlogPost {
 
   @Column({ type: 'varchar' })
   content!: string;
+
+  /** Blog cover image URL (uploaded as WebP). */
+  @Column({ type: 'varchar', length: 2048, nullable: true })
+  blogImage!: string | null;
+
+  @Column({ type: 'varchar', length: 512, nullable: true })
+  blogImageAlt!: string | null;
 
   @Column({ type: 'json', nullable: true })
   faqs!: { question: string; answer: string }[] | null;
@@ -60,9 +65,6 @@ export class BlogPost {
 
   @Column({ type: 'timestamp', nullable: true })
   scheduledAt!: Date | null;
-
-  @OneToMany(() => BlogImage, (image) => image.blog, { cascade: true })
-  images!: BlogImage[];
 
   @ManyToOne(() => BlogCategory, (category) => category.blogPosts)
   category!: BlogCategory;

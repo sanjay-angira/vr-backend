@@ -1,19 +1,15 @@
 /**
  * Flat optimized image URL columns shared across image entities / DTOs.
+ * Original stays as uploaded; only WebP size variants are generated.
  * Unused sizes for a given preset remain null.
  */
 export type OptimizedImageColumns = {
   originalUrl: string;
   webp400?: string | null;
-  jpg400?: string | null;
   webp800?: string | null;
-  jpg800?: string | null;
   webp1200?: string | null;
-  jpg1200?: string | null;
   webp1440?: string | null;
-  jpg1440?: string | null;
   webp1920?: string | null;
-  jpg1920?: string | null;
 };
 
 export const OPTIMIZED_IMAGE_WIDTHS = [
@@ -28,15 +24,10 @@ export function emptyOptimizedImageColumns(
   return {
     originalUrl,
     webp400: null,
-    jpg400: null,
     webp800: null,
-    jpg800: null,
     webp1200: null,
-    jpg1200: null,
     webp1440: null,
-    jpg1440: null,
     webp1920: null,
-    jpg1920: null,
   };
 }
 
@@ -48,15 +39,10 @@ export function collectOptimizedImageUrls(
   const keys: (keyof OptimizedImageColumns)[] = [
     'originalUrl',
     'webp400',
-    'jpg400',
     'webp800',
-    'jpg800',
     'webp1200',
-    'jpg1200',
     'webp1440',
-    'jpg1440',
     'webp1920',
-    'jpg1920',
   ];
   const urls: string[] = [];
   for (const key of keys) {
@@ -70,6 +56,7 @@ export function collectOptimizedImageUrls(
 
 /**
  * Flatten nested sizes map { "400": { webp, jpg } } into column fields.
+ * JPG size URLs are ignored — only WebP variants are kept.
  */
 export function flattenSizesToColumns(
   originalUrl: string,
@@ -82,12 +69,8 @@ export function flattenSizesToColumns(
     const width = Number(widthKey);
     if (!formats || !Number.isFinite(width)) continue;
     const webpKey = `webp${width}` as keyof OptimizedImageColumns;
-    const jpgKey = `jpg${width}` as keyof OptimizedImageColumns;
     if (webpKey in columns && formats.webp) {
       (columns as Record<string, string | null>)[webpKey] = formats.webp;
-    }
-    if (jpgKey in columns && formats.jpg) {
-      (columns as Record<string, string | null>)[jpgKey] = formats.jpg;
     }
   }
   return columns;
@@ -96,7 +79,7 @@ export function flattenSizesToColumns(
 export function setColumnForWidth(
   columns: OptimizedImageColumns,
   width: number,
-  format: 'webp' | 'jpg',
+  format: 'webp',
   url: string,
 ): void {
   const key = `${format}${width}` as keyof OptimizedImageColumns;
@@ -106,7 +89,7 @@ export function setColumnForWidth(
 
 /**
  * Detect preset widths from the optimized upload folder path.
- * Upload layout: `{folder}/{assetId}/original/...` and `{folder}/{assetId}/{width}/image.webp|jpg`
+ * Upload layout: `{folder}/{assetId}/original/...` and `{folder}/{assetId}/{width}/image.webp`
  */
 export function detectOptimizedWidthsFromUrl(originalUrl: string): number[] {
   const url = originalUrl.toLowerCase();
@@ -139,9 +122,9 @@ export function deriveOptimizedColumnsFromOriginalUrl(
     ? widths
     : detectOptimizedWidthsFromUrl(url);
 
+  // Only WebP size variants are generated; JPG remains the original upload.
   for (const width of targetWidths) {
     setColumnForWidth(columns, width, 'webp', `${base}/${width}/image.webp`);
-    setColumnForWidth(columns, width, 'jpg', `${base}/${width}/image.jpg`);
   }
 
   return columns;

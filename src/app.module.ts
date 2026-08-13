@@ -30,6 +30,7 @@ import { CmsPageModule } from './cms-page/cms-page.module';
 import { HeaderModule } from './header/header.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { renameProductImageUrlColumns } from './commonServices/rename-product-image-url';
+import { migrateCmsImagesOntoParents } from './commonServices/migrate-cms-images-onto-parents';
 
 // Main application module
 @Module({
@@ -65,6 +66,7 @@ import { renameProductImageUrlColumns } from './commonServices/rename-product-im
         await prep.initialize();
         try {
           await renameProductImageUrlColumns(prep);
+          await migrateCmsImagesOntoParents(prep);
         } finally {
           await prep.destroy();
         }

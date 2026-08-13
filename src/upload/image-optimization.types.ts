@@ -16,7 +16,11 @@ export type ImageOptimizationPreset = {
   folder: string;
   widths: number[];
   webpQuality: number;
-  jpgQuality: number;
+  /**
+   * When true, upload stores a single WebP file (no original + size variants).
+   * Used for banner / blog / category. Product keeps multi-size pipeline.
+   */
+  webpOnly?: boolean;
 };
 
 export const IMAGE_OPTIMIZATION_PRESETS: Record<
@@ -28,35 +32,34 @@ export const IMAGE_OPTIMIZATION_PRESETS: Record<
     folder: 'products',
     widths: [400, 800, 1200],
     webpQuality: 82,
-    jpgQuality: 85,
   },
   category: {
     type: 'category',
     folder: 'categories',
-    widths: [400, 800],
+    widths: [800],
     webpQuality: 82,
-    jpgQuality: 85,
+    webpOnly: true,
   },
   blog: {
     type: 'blog',
     folder: 'blogs',
-    widths: [400, 800, 1200],
+    widths: [1200],
     webpQuality: 82,
-    jpgQuality: 85,
+    webpOnly: true,
   },
   banner: {
     type: 'banner',
     folder: 'banners',
-    widths: [1440, 1920],
+    widths: [1920],
     webpQuality: 85,
-    jpgQuality: 88,
+    webpOnly: true,
   },
   banner_mobile: {
     type: 'banner_mobile',
     folder: 'banners/mobile',
-    widths: [800, 1200],
+    widths: [1200],
     webpQuality: 85,
-    jpgQuality: 88,
+    webpOnly: true,
   },
 };
 

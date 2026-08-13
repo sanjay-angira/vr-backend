@@ -30,7 +30,6 @@ export class CustomerBlogService {
     const qb = this.blogRepository
       .createQueryBuilder('blog')
       .leftJoinAndSelect('blog.category', 'category')
-      .leftJoinAndSelect('blog.images', 'images')
       .where('blog.isActive = :isActive', { isActive: true })
       .andWhere('blog.status = :status', { status: 'published' })
       .orderBy('blog.publishedAt', 'DESC')
@@ -68,7 +67,7 @@ export class CustomerBlogService {
   async getBlogBySlug(slug: string) {
     const blog = await this.blogRepository.findOne({
       where: { slug, isActive: true, status: 'published' },
-      relations: ['category', 'tags', 'seo', 'images'],
+      relations: ['category', 'tags', 'seo'],
     });
 
     if (!blog) {
@@ -115,7 +114,7 @@ export class CustomerBlogService {
       title: blog.title,
       slug: blog.slug,
       excerpt: blog.excerpt || '',
-      image: pickOptimizedImageUrl(source, 400, 'webp') || null,
+      image: pickOptimizedImageUrl(source, 400) || null,
       imageAlt: blogImageAlt(blog, blog.title),
       category: blog.category?.title || 'Blog',
       categorySlug: blog.category?.slug || null,
@@ -135,7 +134,7 @@ export class CustomerBlogService {
       slug: blog.slug,
       excerpt: blog.excerpt || '',
       content: blog.content || '',
-      image: pickOptimizedImageUrl(main, 1200, 'webp') || null,
+      image: pickOptimizedImageUrl(main, 1200) || null,
       imageAlt: blogImageAlt(blog, blog.title),
       category: blog.category
         ? {

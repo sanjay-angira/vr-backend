@@ -11,18 +11,12 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from '../src/app.module';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { DataSource, IsNull, Repository } from 'typeorm';
+import { Repository } from 'typeorm';
 import { ProductImage } from '../src/entities/product/product-images.entity';
 import { VariantImage } from '../src/entities/product/variant-image.entity';
 import { Category } from '../src/entities/productCategory/category.entity';
-import { CategoryImage } from '../src/entities/productCategory/category-image.entity';
 import { BlogPost } from '../src/entities/blog/blog-posts.entity';
-import { BlogImage } from '../src/entities/blog/blog-image.entity';
 import { Banner } from '../src/entities/CMS/banner.entity';
-import {
-  BannerImage,
-  BannerImageRole,
-} from '../src/entities/CMS/banner-image.entity';
 import { S3Service } from '../src/upload/s3.service';
 import { ImageOptimizationService } from '../src/upload/image-optimization.service';
 import type { ImageOptimizationType } from '../src/upload/image-optimization.types';
@@ -68,11 +62,8 @@ async function optimizeExistingUrl(
 function productColumnsFromAsset(asset: OptimizedImageAsset) {
   return {
     webp400: asset.webp400 ?? null,
-    jpg400: asset.jpg400 ?? null,
     webp800: asset.webp800 ?? null,
-    jpg800: asset.jpg800 ?? null,
     webp1200: asset.webp1200 ?? null,
-    jpg1200: asset.jpg1200 ?? null,
   };
 }
 
@@ -157,42 +148,19 @@ async function migrateVariantImages(
 }
 
 async function migrateCategories(
-  dataSource: DataSource,
-  imageRepo: Repository<CategoryImage>,
+  categoryRepo: Repository<Category>,
   s3: S3Service,
   optimizer: ImageOptimizationService,
 ) {
-  // Prefer raw SQL so we can still read legacy category columns if they exist.
-  let rows: Array<{
-    id: number;
-    image: string | null;
-    image3d: string | null;
-    video: string | null;
-    imageAltText: string | null;
-  }> = [];
+  const rows = await categoryRepo
+    .createQueryBuilder('c')
+    .where('c.image IS NOT NULL')
+    .andWhere("c.image <> ''")
+    .andWhere("c.image NOT ILIKE '%.webp'")
+    .take(LIMIT)
+    .getMany();
 
-  try {
-    rows = await dataSource.query(`
-      SELECT c.id,
-             c.image,
-             c."image3d" AS "image3d",
-             c.video,
-             c."imageAltText" AS "imageAltText"
-      FROM categories c
-      LEFT JOIN category_images img ON img."categoryId" = c.id
-      WHERE img.id IS NULL
-        AND c.image IS NOT NULL
-        AND c.image <> ''
-      ${LIMIT ? `LIMIT ${Number(LIMIT)}` : ''}
-    `);
-  } catch {
-    console.log(
-      'Categories migrate: legacy image columns not found (already removed). Skipping.',
-    );
-    return;
-  }
-
-  console.log(`Categories to migrate: ${rows.length}`);
+  console.log(`Categories to convert to WebP: ${rows.length}`);
 
   for (const row of rows) {
     try {
@@ -206,22 +174,10 @@ async function migrateCategories(
         optimizer,
         row.image,
         'category',
-        `legacy-category-${row.id}`,
+        `category-${row.id}`,
       );
-      await imageRepo.save(
-        imageRepo.create({
-          originalUrl: row.image,
-          webp400: result.webp400 ?? null,
-          jpg400: result.jpg400 ?? null,
-          webp800: result.webp800 ?? null,
-          jpg800: result.jpg800 ?? null,
-          altText: row.imageAltText || null,
-          image3d: row.image3d || null,
-          video: row.video || null,
-          sortOrder: 0,
-          category: { id: row.id } as Category,
-        }),
-      );
+      row.image = result.Location;
+      await categoryRepo.save(row);
       console.log(`✓ category#${row.id}`);
     } catch (error) {
       console.error(
@@ -233,54 +189,19 @@ async function migrateCategories(
 }
 
 async function migrateBlogs(
-  dataSource: DataSource,
-  imageRepo: Repository<BlogImage>,
+  blogRepo: Repository<BlogPost>,
   s3: S3Service,
   optimizer: ImageOptimizationService,
 ) {
-  let rows: Array<{
-    id: number;
-    blogImage: string | null;
-    blogImageAlt: string | null;
-  }> = [];
+  const rows = await blogRepo
+    .createQueryBuilder('b')
+    .where('b.blogImage IS NOT NULL')
+    .andWhere("b.blogImage <> ''")
+    .andWhere("b.blogImage NOT ILIKE '%.webp'")
+    .take(LIMIT)
+    .getMany();
 
-  try {
-    rows = await dataSource.query(`
-      SELECT b.id,
-             b."blogImage" AS "blogImage",
-             b."blogImageAlt" AS "blogImageAlt"
-      FROM blog_posts b
-      LEFT JOIN blog_images img ON img."blogId" = b.id
-      WHERE img.id IS NULL
-        AND b."blogImage" IS NOT NULL
-        AND b."blogImage" <> ''
-      ${LIMIT ? `LIMIT ${Number(LIMIT)}` : ''}
-    `);
-  } catch {
-    // Also try migrating from thumbnail if main was empty (legacy only).
-    try {
-      rows = await dataSource.query(`
-        SELECT b.id,
-               COALESCE(NULLIF(b."blogImage", ''), b."thumbnailImage") AS "blogImage",
-               b."blogImageAlt" AS "blogImageAlt"
-        FROM blog_posts b
-        LEFT JOIN blog_images img ON img."blogId" = b.id
-        WHERE img.id IS NULL
-          AND (
-            (b."blogImage" IS NOT NULL AND b."blogImage" <> '')
-            OR (b."thumbnailImage" IS NOT NULL AND b."thumbnailImage" <> '')
-          )
-        ${LIMIT ? `LIMIT ${Number(LIMIT)}` : ''}
-      `);
-    } catch {
-      console.log(
-        'Blogs migrate: legacy image columns not found (already removed). Skipping.',
-      );
-      return;
-    }
-  }
-
-  console.log(`Blogs to migrate: ${rows.length}`);
+  console.log(`Blogs to convert to WebP: ${rows.length}`);
 
   for (const row of rows) {
     try {
@@ -294,22 +215,10 @@ async function migrateBlogs(
         optimizer,
         row.blogImage,
         'blog',
-        `legacy-blog-${row.id}`,
+        `blog-${row.id}`,
       );
-      await imageRepo.save(
-        imageRepo.create({
-          originalUrl: row.blogImage,
-          webp400: result.webp400 ?? null,
-          jpg400: result.jpg400 ?? null,
-          webp800: result.webp800 ?? null,
-          jpg800: result.jpg800 ?? null,
-          webp1200: result.webp1200 ?? null,
-          jpg1200: result.jpg1200 ?? null,
-          altText: row.blogImageAlt,
-          sortOrder: 0,
-          blog: { id: row.id } as BlogPost,
-        }),
-      );
+      row.blogImage = result.Location;
+      await blogRepo.save(row);
       console.log(`✓ blog#${row.id}`);
     } catch (error) {
       console.error(
@@ -321,39 +230,12 @@ async function migrateBlogs(
 }
 
 async function migrateBanners(
-  dataSource: DataSource,
-  imageRepo: Repository<BannerImage>,
+  bannerRepo: Repository<Banner>,
   s3: S3Service,
   optimizer: ImageOptimizationService,
 ) {
-  let rows: Array<{
-    id: number;
-    image: string | null;
-    mobileImage: string | null;
-  }> = [];
-
-  try {
-    rows = await dataSource.query(`
-      SELECT b.id,
-             b.image,
-             b."mobileImage" AS "mobileImage"
-      FROM banners b
-      LEFT JOIN banner_images img ON img."bannerId" = b.id
-      WHERE img.id IS NULL
-        AND (
-          (b.image IS NOT NULL AND b.image <> '')
-          OR (b."mobileImage" IS NOT NULL AND b."mobileImage" <> '')
-        )
-      ${LIMIT ? `LIMIT ${Number(LIMIT)}` : ''}
-    `);
-  } catch {
-    console.log(
-      'Banners migrate: legacy image columns not found (already removed). Skipping.',
-    );
-    return;
-  }
-
-  console.log(`Banners to migrate: ${rows.length}`);
+  const rows = await bannerRepo.find({ take: LIMIT });
+  console.log(`Banners to convert to WebP: ${rows.length}`);
 
   for (const row of rows) {
     try {
@@ -361,49 +243,33 @@ async function migrateBanners(
         console.log(`[dry-run] banner#${row.id}`);
         continue;
       }
-      if (row.image) {
+      let changed = false;
+      if (row.image && !row.image.toLowerCase().endsWith('.webp')) {
         const result = await optimizeExistingUrl(
           s3,
           optimizer,
           row.image,
           'banner',
-          `legacy-banner-${row.id}`,
+          `banner-${row.id}`,
         );
-        await imageRepo.save(
-          imageRepo.create({
-            originalUrl: row.image,
-            webp1440: result.webp1440 ?? null,
-            jpg1440: result.jpg1440 ?? null,
-            webp1920: result.webp1920 ?? null,
-            jpg1920: result.jpg1920 ?? null,
-            role: BannerImageRole.DESKTOP,
-            sortOrder: 0,
-            banner: { id: row.id } as Banner,
-          }),
-        );
+        row.image = result.Location;
+        changed = true;
       }
-      if (row.mobileImage) {
+      if (row.mobileImage && !row.mobileImage.toLowerCase().endsWith('.webp')) {
         const result = await optimizeExistingUrl(
           s3,
           optimizer,
           row.mobileImage,
           'banner_mobile',
-          `legacy-banner-mobile-${row.id}`,
+          `banner-mobile-${row.id}`,
         );
-        await imageRepo.save(
-          imageRepo.create({
-            originalUrl: row.mobileImage,
-            webp800: result.webp800 ?? null,
-            jpg800: result.jpg800 ?? null,
-            webp1200: result.webp1200 ?? null,
-            jpg1200: result.jpg1200 ?? null,
-            role: BannerImageRole.MOBILE,
-            sortOrder: 1,
-            banner: { id: row.id } as Banner,
-          }),
-        );
+        row.mobileImage = result.Location;
+        changed = true;
       }
-      console.log(`✓ banner#${row.id}`);
+      if (changed) {
+        await bannerRepo.save(row);
+        console.log(`✓ banner#${row.id}`);
+      }
     } catch (error) {
       console.error(
         `✗ banner#${row.id}:`,
@@ -433,23 +299,12 @@ async function main() {
       optimizer,
     );
     await migrateCategories(
-      app.get(DataSource),
-      app.get(getRepositoryToken(CategoryImage)),
+      app.get(getRepositoryToken(Category)),
       s3,
       optimizer,
     );
-    await migrateBlogs(
-      app.get(DataSource),
-      app.get(getRepositoryToken(BlogImage)),
-      s3,
-      optimizer,
-    );
-    await migrateBanners(
-      app.get(DataSource),
-      app.get(getRepositoryToken(BannerImage)),
-      s3,
-      optimizer,
-    );
+    await migrateBlogs(app.get(getRepositoryToken(BlogPost)), s3, optimizer);
+    await migrateBanners(app.get(getRepositoryToken(Banner)), s3, optimizer);
 
     console.log(
       DRY_RUN

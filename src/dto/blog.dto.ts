@@ -110,12 +110,12 @@ export class CreateBlogDto {
   @IsOptional()
   excerpt?: string;
 
-  @ApiPropertyOptional({ description: 'Stored on blog_images.originalUrl' })
+  @ApiPropertyOptional({ description: 'Blog cover image URL (uploaded as WebP)' })
   @IsString()
   @IsOptional()
   blogImage?: string;
 
-  @ApiPropertyOptional({ description: 'Stored on blog_images.altText' })
+  @ApiPropertyOptional({ description: 'Blog cover image alt text' })
   @IsString()
   @IsOptional()
   blogImageAlt?: string;
@@ -194,12 +194,12 @@ export class UpdateBlogDto {
   @IsOptional()
   excerpt?: string;
 
-  @ApiPropertyOptional({ description: 'Stored on blog_images.originalUrl' })
+  @ApiPropertyOptional({ description: 'Blog cover image URL (uploaded as WebP)' })
   @IsString()
   @IsOptional()
   blogImage?: string;
 
-  @ApiPropertyOptional({ description: 'Stored on blog_images.altText' })
+  @ApiPropertyOptional({ description: 'Blog cover image alt text' })
   @IsString()
   @IsOptional()
   blogImageAlt?: string;
