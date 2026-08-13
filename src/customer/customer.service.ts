@@ -788,9 +788,9 @@ export class CustomerService {
       (a, b) => a.sortOrder - b.sortOrder,
     );
     const selectedImages =
-      sortedProductImages.length > 0
-        ? sortedProductImages
-        : sortedVariantImages;
+      sortedVariantImages.length > 0
+        ? sortedVariantImages
+        : sortedProductImages;
     const fullProductName =
       `${product.productName || ''}${variant.name ? ` ${variant.name}` : ''}`.trim();
 

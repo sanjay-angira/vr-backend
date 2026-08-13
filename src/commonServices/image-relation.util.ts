@@ -58,16 +58,16 @@ export function pickProductCardImage(
 }
 
 /**
- * Card image: prefer first row that has sized WebP.
- * Checks product images first, then variant images, so cards stay WebP-only
- * even when product_images were never backfilled but variant_images were.
+ * Card image for the priced/selected variant.
+ * Prefer that variant's WebP images so color/size match the card title & price,
+ * then fall back to product-level gallery WebP.
  */
 export function pickProductOrVariantCardImage(
   productImages: Array<ProductImage | VariantImage> | null | undefined,
   variantImages: Array<ProductImage | VariantImage> | null | undefined,
   preferredWidth = 400,
 ): string {
-  const pools = [productImages || [], variantImages || []];
+  const pools = [variantImages || [], productImages || []];
 
   for (const pool of pools) {
     const sorted = [...pool].sort((a, b) => a.sortOrder - b.sortOrder);
