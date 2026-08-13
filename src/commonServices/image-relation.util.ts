@@ -52,5 +52,30 @@ export function pickProductCardImage(
   image: ProductImage | VariantImage | null | undefined,
   preferredWidth = 400,
 ) {
-  return pickOptimizedImageUrl(productImageSource(image), preferredWidth);
+  return pickOptimizedImageUrl(productImageSource(image), preferredWidth, {
+    webpOnly: true,
+  });
+}
+
+/**
+ * Card image: prefer first row that has sized WebP.
+ * Checks product images first, then variant images, so cards stay WebP-only
+ * even when product_images were never backfilled but variant_images were.
+ */
+export function pickProductOrVariantCardImage(
+  productImages: Array<ProductImage | VariantImage> | null | undefined,
+  variantImages: Array<ProductImage | VariantImage> | null | undefined,
+  preferredWidth = 400,
+): string {
+  const pools = [productImages || [], variantImages || []];
+
+  for (const pool of pools) {
+    const sorted = [...pool].sort((a, b) => a.sortOrder - b.sortOrder);
+    for (const image of sorted) {
+      const url = pickProductCardImage(image, preferredWidth);
+      if (url) return url;
+    }
+  }
+
+  return '';
 }

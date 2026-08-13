@@ -14,7 +14,7 @@ import {
   bannerImageSource,
   blogImageSource,
   categoryImageSource,
-  pickProductCardImage,
+  pickProductOrVariantCardImage,
 } from 'src/commonServices/image-relation.util';
 
 @Injectable()
@@ -261,8 +261,6 @@ export class CustomerHomepageService {
     const variantImages = [...(variant.images || [])].sort(
       (a, b) => a.sortOrder - b.sortOrder,
     );
-    const selectedImages =
-      productImages.length > 0 ? productImages : variantImages;
     const approvedReviews = (product.reviews || []).filter(
       (review) => review.isApproved,
     );
@@ -286,7 +284,7 @@ export class CustomerHomepageService {
       discountAmount: pricing.discountAmount,
       discountPercentage: pricing.discountPercentage,
       appliedOffer: pricing.appliedOffer,
-      image: pickProductCardImage(selectedImages[0], 400),
+      image: pickProductOrVariantCardImage(productImages, variantImages, 400),
       category: product.category?.categoryName || '',
       rating: Math.round(averageRating * 10) / 10,
       reviewCount: approvedReviews.length,

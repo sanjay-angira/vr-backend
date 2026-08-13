@@ -242,6 +242,90 @@ export class ImageOptimizationService {
     return this.processAndUpload(fakeFile, imageType, entityId);
   }
 
+  /**
+   * From an existing original (e.g. PNG), generate sized WebP variants only.
+   * Does not re-upload or change the original URL.
+   */
+  async generateWebpVariantsFromBuffer(
+    buffer: Buffer,
+    imageType: ImageOptimizationType,
+    entityId: string,
+    originalUrl: string,
+  ): Promise<OptimizedImageAsset> {
+    if (!buffer?.length) {
+      throw new BadRequestException('Image buffer is required');
+    }
+
+    let metadata: SharpMetadata;
+    try {
+      metadata = await sharp(buffer).metadata();
+    } catch (error) {
+      const detail =
+        error instanceof Error ? error.message : 'Unknown sharp error';
+      throw new BadRequestException(
+        `Invalid or corrupted image: ${detail}`,
+      );
+    }
+
+    const width = metadata.width || 0;
+    const height = metadata.height || 0;
+    if (!width || !height) {
+      throw new BadRequestException('Could not read image dimensions');
+    }
+
+    const preset = IMAGE_OPTIMIZATION_PRESETS[imageType];
+    const assetId = (entityId?.trim() || randomUUID()).replace(
+      /[^a-zA-Z0-9_-]/g,
+      '',
+    );
+    const baseFolder = `${preset.folder}/${assetId}`;
+    const webpQuality = this.webpQualityOverride ?? preset.webpQuality;
+    const columns = buildFlatAssetBase(originalUrl);
+    const uniqueWidths = this.resolveTargetWidths(preset.widths, width);
+
+    try {
+      for (const targetWidth of uniqueWidths) {
+        const webpBuffer = await sharp(buffer)
+          .resize({
+            width: targetWidth,
+            fit: 'inside',
+            withoutEnlargement: true,
+          })
+          .webp({ quality: webpQuality, effort: 4 })
+          .toBuffer();
+
+        const webpUpload = await this.s3Service.uploadBuffer(
+          webpBuffer,
+          `${baseFolder}/${targetWidth}/image.webp`,
+          'image/webp',
+        );
+
+        setColumnForWidth(columns, targetWidth, 'webp', webpUpload.Location);
+      }
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Unknown processing error';
+      this.logger.error(
+        `WebP variant generation failed: ${message}`,
+        error instanceof Error ? error.stack : undefined,
+      );
+      throw new InternalServerErrorException(
+        `Failed to generate WebP variants: ${message}`,
+      );
+    }
+
+    return {
+      ...columns,
+      original: originalUrl,
+      Location: originalUrl,
+      Key: '',
+      Bucket: '',
+      assetId,
+      width,
+      height,
+    };
+  }
+
   private resolveTargetWidths(
     presetWidths: number[],
     sourceWidth: number,

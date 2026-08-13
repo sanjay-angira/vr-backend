@@ -5,18 +5,32 @@ type ImageColumnSource = Partial<OptimizedImageColumns> & {
   originalUrl?: string | null;
 };
 
+export type PickOptimizedImageOptions = {
+  /** Never return a non-WebP original; empty string if no WebP is available. */
+  webpOnly?: boolean;
+};
+
 const WIDTH_KEYS = [400, 800, 1200, 1440, 1920] as const;
+
+function isWebpUrl(url: string): boolean {
+  return /\.webp(\?|#|$)/i.test(url.trim());
+}
 
 /**
  * Pick the best WebP URL from flat columns for a preferred display width.
- * Falls back to originalUrl / url when size columns are empty.
+ * Falls back to originalUrl / url when size columns are empty (unless webpOnly).
  */
 export function pickOptimizedImageUrl(
   source: ImageColumnSource | string | null | undefined,
   preferredWidth: number,
+  options?: PickOptimizedImageOptions,
 ): string {
   if (!source) return '';
-  if (typeof source === 'string') return source.trim();
+  if (typeof source === 'string') {
+    const url = source.trim();
+    if (options?.webpOnly && url && !isWebpUrl(url)) return '';
+    return url;
+  }
 
   const fallback = (source.originalUrl || source.url || '').trim();
 
@@ -26,6 +40,9 @@ export function pickOptimizedImageUrl(
   });
 
   if (!available.length) {
+    if (options?.webpOnly) {
+      return isWebpUrl(fallback) ? fallback : '';
+    }
     return fallback;
   }
 
@@ -34,5 +51,11 @@ export function pickOptimizedImageUrl(
     available[available.length - 1];
 
   const preferred = source[`webp${bestWidth}` as keyof ImageColumnSource];
-  return String(preferred || fallback).trim();
+  const webpUrl = String(preferred || '').trim();
+  if (webpUrl) return webpUrl;
+
+  if (options?.webpOnly) {
+    return isWebpUrl(fallback) ? fallback : '';
+  }
+  return fallback;
 }

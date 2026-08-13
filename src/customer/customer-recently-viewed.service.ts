@@ -6,7 +6,7 @@ import {
   errorResponse,
 } from 'src/commonServices/response.service';
 import { OfferPricingService } from 'src/commonServices/offer-pricing.service';
-import { pickProductCardImage } from 'src/commonServices/image-relation.util';
+import { pickProductOrVariantCardImage } from 'src/commonServices/image-relation.util';
 import { RecentlyViewed } from 'src/entities/recently-viewed/recently-viewed.entity';
 import { Product, PublishStatus } from 'src/entities/product/product.entity';
 import { Category } from 'src/entities/productCategory/category.entity';
@@ -208,8 +208,6 @@ export class CustomerRecentlyViewedService {
     const variantImages = [...(variant.images || [])].sort(
       (a, b) => a.sortOrder - b.sortOrder,
     );
-    const selectedImages =
-      productImages.length > 0 ? productImages : variantImages;
     const approvedReviews = (product.reviews || []).filter(
       (review) => review.isApproved,
     );
@@ -233,7 +231,7 @@ export class CustomerRecentlyViewedService {
       discountAmount: pricing.discountAmount,
       discountPercentage: pricing.discountPercentage,
       appliedOffer: pricing.appliedOffer,
-      image: pickProductCardImage(selectedImages[0], 400),
+      image: pickProductOrVariantCardImage(productImages, variantImages, 400),
       category: product.category?.categoryName || '',
       rating: Math.round(averageRating * 10) / 10,
       reviewCount: approvedReviews.length,

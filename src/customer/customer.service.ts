@@ -27,6 +27,7 @@ import {
   categoryImageAlt,
   categoryImageSource,
   pickProductCardImage,
+  pickProductOrVariantCardImage,
 } from 'src/commonServices/image-relation.util';
 import { Order } from 'src/entities/order/order.entity';
 import { OrderItem } from 'src/entities/order/order-item.entity';
@@ -823,7 +824,11 @@ export class CustomerService {
       sku: variant.sku || null,
       stock: Number(variant.stock),
       inStock: Number(variant.stock) > 0,
-      image: pickProductCardImage(selectedImages[0], 400),
+      image: pickProductOrVariantCardImage(
+        sortedProductImages,
+        sortedVariantImages,
+        400,
+      ),
       images: selectedImages,
       originalPrice: pricing.originalPrice,
       finalPrice: pricing.finalPrice,
@@ -977,8 +982,12 @@ export class CustomerService {
             productSlug: item.productSlug,
             shortDescription: item.shortDescription,
             image:
-              item.images?.slice().sort((a, b) => a.sortOrder - b.sortOrder)[0]
-                ?.originalUrl || null,
+              pickProductCardImage(
+                item.images
+                  ?.slice()
+                  .sort((a, b) => a.sortOrder - b.sortOrder)[0],
+                400,
+              ) || null,
             price:
               item.variants
                 ?.map((variant) => Number(variant.price))
