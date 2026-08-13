@@ -14,6 +14,10 @@ import { Product, PublishStatus } from 'src/entities/product/product.entity';
 import { Category } from 'src/entities/productCategory/category.entity';
 import { DataSource, In, ILike, Repository } from 'typeorm';
 import { ProductVariant } from 'src/entities/product/product-variants.entity';
+import { ProductImage } from 'src/entities/product/product-images.entity';
+import { ProductAttribute } from 'src/entities/product/product-attribute.entity';
+import { Faq } from 'src/entities/product/faq.entity';
+import { Review } from 'src/entities/product/review.entity';
 import { Cart } from 'src/entities/cart/cart.entity';
 import { CartItem } from 'src/entities/cart/cart-item.entity';
 import { Banner } from 'src/entities/CMS/banner.entity';
@@ -26,7 +30,6 @@ import {
   bannerImageSource,
   categoryImageAlt,
   categoryImageSource,
-  pickProductCardImage,
   pickProductOrVariantCardImage,
 } from 'src/commonServices/image-relation.util';
 import { Order } from 'src/entities/order/order.entity';
@@ -652,7 +655,37 @@ export class CustomerService {
         );
       }
 
-      // Step 2: load full product graphs for those ids
+      // Price / deal sorts need every card priced first. Newest listing can
+      // load only the requested page (big win for PDP "recommended" strip).
+      const needsFullScan =
+        hasMinPrice ||
+        hasMaxPrice ||
+        bestDeals ||
+        sortBy === 'price_asc' ||
+        sortBy === 'price_desc' ||
+        sortBy === 'discount_desc' ||
+        sortBy === 'name_asc';
+
+      const idsToLoad = needsFullScan
+        ? productIds
+        : productIds.slice(
+            (pageNumber - 1) * pageSize,
+            (pageNumber - 1) * pageSize + pageSize,
+          );
+
+      if (!idsToLoad.length) {
+        return successResponse(
+          {
+            rows: [],
+            count: needsFullScan ? 0 : productIds.length,
+            pageNumber,
+            pageSize,
+          },
+          'Store products retrieved successfully',
+        );
+      }
+
+      // Step 2: load full product graphs for those ids only
       const products = await this.productRepository
         .createQueryBuilder('product')
         .leftJoinAndSelect('product.variants', 'variants')
@@ -664,19 +697,22 @@ export class CustomerService {
         .leftJoinAndSelect('brand.brandOffers', 'brandOffers')
         .leftJoinAndSelect('product.productOffers', 'productOffers')
         .leftJoinAndSelect('product.reviews', 'reviews')
-        .where('product.id IN (:...productIds)', { productIds })
+        .where('product.id IN (:...productIds)', { productIds: idsToLoad })
         .getMany();
 
       const productById = new Map(
         products.map((product) => [product.id, product]),
       );
-      const orderedProducts = productIds
+      const orderedProducts = idsToLoad
         .map((id) => productById.get(id))
         .filter((product): product is Product => Boolean(product));
 
+      const categoryCache = new Map<number, Category | null>();
       const mapped = (
         await Promise.all(
-          orderedProducts.map((product) => this.mapStoreProductCard(product)),
+          orderedProducts.map((product) =>
+            this.mapStoreProductCard(product, categoryCache),
+          ),
         )
       ).filter((row): row is StoreProductCard => row !== null);
 
@@ -698,9 +734,10 @@ export class CustomerService {
 
       filtered = this.sortStoreProducts(filtered, sortBy);
 
-      const count = filtered.length;
-      const start = (pageNumber - 1) * pageSize;
-      const rows = filtered.slice(start, start + pageSize);
+      const count = needsFullScan ? filtered.length : productIds.length;
+      const rows = needsFullScan
+        ? filtered.slice((pageNumber - 1) * pageSize, (pageNumber - 1) * pageSize + pageSize)
+        : filtered;
 
       return successResponse(
         { rows, count, pageNumber, pageSize },
@@ -762,14 +799,23 @@ export class CustomerService {
 
   private async mapStoreProductCard(
     product: Product,
+    categoryCache?: Map<number, Category | null>,
   ): Promise<StoreProductCard | null> {
     // Same lowest-variant method as homepage (`mapProductCard`)
-    const categoryWithHierarchy = product.category?.id
-      ? await this.offerPricingService.loadCompleteCategoryHierarchy(
-          product.category.id,
-          new Set(),
-        )
-      : null;
+    let categoryWithHierarchy: Category | null = null;
+    if (product.category?.id) {
+      const cached = categoryCache?.get(product.category.id);
+      if (cached !== undefined) {
+        categoryWithHierarchy = cached;
+      } else {
+        categoryWithHierarchy =
+          await this.offerPricingService.loadCompleteCategoryHierarchy(
+            product.category.id,
+            new Set(),
+          );
+        categoryCache?.set(product.category.id, categoryWithHierarchy);
+      }
+    }
 
     const bestVariantResult = this.offerPricingService.findBestVariant(
       product,
@@ -872,45 +918,58 @@ export class CustomerService {
         return errorResponse('Product not found', 404);
       }
 
+      // QueryBuilder skips Product entity eager relations (variants/images/tags/reviews),
+      // which otherwise explode into huge join result sets.
       const product = await this.productRepository
         .createQueryBuilder('product')
-        .leftJoinAndSelect('product.variants', 'variants')
-        .leftJoinAndSelect('variants.images', 'variantImages')
-        .leftJoinAndSelect(
-          'variants.productVariantOffers',
-          'productVariantOffers',
-        )
-        .leftJoinAndSelect('product.productOffers', 'productOffers')
-        .leftJoinAndSelect('product.productAttributes', 'productAttributes')
-        .leftJoinAndSelect('productAttributes.attribute', 'productAttribute')
-        .leftJoinAndSelect('variants.variantAttributes', 'variantAttributes')
-        .leftJoinAndSelect('variantAttributes.attribute', 'variantAttribute')
         .leftJoinAndSelect('product.category', 'category')
         .leftJoinAndSelect('product.brand', 'brand')
         .leftJoinAndSelect('brand.brandOffers', 'brandOffers')
-        .leftJoinAndSelect('product.productTags', 'productTags')
-        .leftJoinAndSelect('product.images', 'images')
-        .leftJoinAndSelect('product.seo', 'seo')
-        .leftJoinAndSelect(
-          'product.frequentlyBoughtTogether',
-          'frequentlyBoughtTogether',
-        )
-        .leftJoinAndSelect(
-          'frequentlyBoughtTogether.images',
-          'frequentlyBoughtTogetherImages',
-        )
-        .leftJoinAndSelect(
-          'frequentlyBoughtTogether.variants',
-          'frequentlyBoughtTogetherVariants',
-        )
-        .leftJoinAndSelect('product.faqs', 'faqs')
-        .leftJoinAndSelect('product.reviews', 'reviews')
+        .leftJoinAndSelect('product.productOffers', 'productOffers')
         .where('product.id = :productId', { productId: productLookup })
+        .andWhere('product.isActive = :isActive', { isActive: true })
+        .andWhere('product.publishStatus = :publishStatus', {
+          publishStatus: PublishStatus.PUBLISHED,
+        })
         .getOne();
 
       if (!product) {
         return errorResponse('Product not found', 404);
       }
+
+      const [variants, images, productAttributes, faqs, reviews] =
+        await Promise.all([
+          this.variationRepository.find({
+            where: { product: { id: product.id } },
+            relations: {
+              images: true,
+              productVariantOffers: true,
+              variantAttributes: { attribute: true },
+            },
+            relationLoadStrategy: 'query',
+          }),
+          this.dataSource.getRepository(ProductImage).find({
+            where: { product: { id: product.id } },
+            order: { sortOrder: 'ASC' },
+          }),
+          this.dataSource.getRepository(ProductAttribute).find({
+            where: { product: { id: product.id } },
+            relations: { attribute: true },
+          }),
+          this.dataSource.getRepository(Faq).find({
+            where: { product: { id: product.id }, isActive: true },
+            order: { sortOrder: 'ASC' },
+          }),
+          this.dataSource.getRepository(Review).find({
+            where: { product: { id: product.id }, isApproved: true },
+          }),
+        ]);
+
+      product.variants = variants;
+      product.images = images;
+      product.productAttributes = productAttributes;
+      product.faqs = faqs;
+      product.reviews = reviews;
 
       if (product.category) {
         const categoryWithHierarchy =
@@ -922,12 +981,6 @@ export class CustomerService {
         if (categoryWithHierarchy) {
           product.category = categoryWithHierarchy;
         }
-      }
-
-      if (product.images?.length) {
-        product.images = [...product.images].sort(
-          (a, b) => a.sortOrder - b.sortOrder,
-        );
       }
 
       if (product.variants?.length) {
@@ -961,45 +1014,6 @@ export class CustomerService {
           ) as any;
       }
 
-      if (product.faqs?.length) {
-        product.faqs = [...product.faqs]
-          .filter((faq) => faq.isActive)
-          .sort((a, b) => a.sortOrder - b.sortOrder);
-      }
-
-      if (product.reviews?.length) {
-        product.reviews = [...product.reviews].filter(
-          (review) => review.isApproved,
-        );
-      }
-
-      delete (product as any).relatedTo;
-      if (product.frequentlyBoughtTogether) {
-        product.frequentlyBoughtTogether = product.frequentlyBoughtTogether.map(
-          (item) => ({
-            id: item.id,
-            productName: item.productName,
-            productSlug: item.productSlug,
-            shortDescription: item.shortDescription,
-            image:
-              pickProductCardImage(
-                item.images
-                  ?.slice()
-                  .sort((a, b) => a.sortOrder - b.sortOrder)[0],
-                400,
-              ) || null,
-            price:
-              item.variants
-                ?.map((variant) => Number(variant.price))
-                .filter((price) => Number.isFinite(price))
-                .sort((a, b) => a - b)[0] ?? null,
-            inStock:
-              item.variants?.some((variant) => Number(variant.stock) > 0) ??
-              false,
-          }),
-        ) as any;
-      }
-
       return successResponse(product, 'Product retrieved successfully');
     } catch (error) {
       throw error;
@@ -1009,7 +1023,7 @@ export class CustomerService {
   private async resolveProductLookup(slug: string): Promise<number | null> {
     const product = await this.productRepository
       .createQueryBuilder('product')
-      .select(['product.id', 'product.productSlug'])
+      .select(['product.id'])
       .where('product.productSlug = :slug', { slug })
       .andWhere('product.isActive = :isActive', { isActive: true })
       .andWhere('product.publishStatus = :publishStatus', {
@@ -1021,17 +1035,19 @@ export class CustomerService {
       return product.id;
     }
 
-    const variant = await this.variationRepository
+    const row = await this.variationRepository
       .createQueryBuilder('variant')
-      .leftJoinAndSelect('variant.product', 'product')
+      .innerJoin('variant.product', 'product')
+      .select('product.id', 'productId')
       .where('variant.slug = :slug', { slug })
       .andWhere('product.isActive = :isActive', { isActive: true })
       .andWhere('product.publishStatus = :publishStatus', {
         publishStatus: PublishStatus.PUBLISHED,
       })
-      .getOne();
+      .getRawOne<{ productId: string | number }>();
 
-    return variant?.product?.id ?? null;
+    const productId = Number(row?.productId);
+    return Number.isFinite(productId) && productId > 0 ? productId : null;
   }
   async addCartItem(
     userId: number | null,
