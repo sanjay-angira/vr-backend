@@ -52,9 +52,9 @@ export function pickProductCardImage(
   image: ProductImage | VariantImage | null | undefined,
   preferredWidth = 400,
 ) {
-  return pickOptimizedImageUrl(productImageSource(image), preferredWidth, {
-    webpOnly: true,
-  });
+  // Prefer sized WebP; fall back to original so cards never go blank when
+  // legacy uploads lack webp* columns.
+  return pickOptimizedImageUrl(productImageSource(image), preferredWidth);
 }
 
 /**

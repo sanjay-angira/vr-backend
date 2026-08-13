@@ -30,31 +30,52 @@ export class S3Service {
   private readonly region: string;
 
   constructor(private readonly configService: ConfigService) {
-    this.region = this.configService.get<string>('AWS_REGION') || 'ap-south-1';
+    this.region =
+      this.configService.get<string>('AWS_REGION')?.trim() || 'ap-south-1';
     this.bucket =
-      this.configService.get<string>('AWS_S3_BUCKET') || 'vrindavan-rasa';
+      this.configService.get<string>('AWS_S3_BUCKET')?.trim() ||
+      'vrindavan-rasa';
 
     const accessKeyId =
-      this.configService.get<string>('AWS_ACCESS_KEY_ID') || '';
+      this.configService.get<string>('AWS_ACCESS_KEY_ID')?.trim() || '';
     const secretAccessKey =
-      this.configService.get<string>('AWS_SECRET_ACCESS_KEY') || '';
+      this.configService.get<string>('AWS_SECRET_ACCESS_KEY')?.trim() || '';
 
     if (!accessKeyId || !secretAccessKey) {
       this.logger.error(
-        'AWS credentials are missing. Set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY in .env',
+        'AWS credentials are missing. Set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY on the live host (Render/env), then redeploy/restart.',
       );
     }
 
     this.s3Client = new S3Client({
       region: this.region,
-      credentials: {
-        accessKeyId,
-        secretAccessKey,
-      },
+      // Only pass explicit keys when both exist — empty strings cause
+      // "authorization header is malformed; non-empty Access Key (AKID)".
+      ...(accessKeyId && secretAccessKey
+        ? {
+            credentials: {
+              accessKeyId,
+              secretAccessKey,
+            },
+          }
+        : {}),
       requestHandler: new NodeHttpHandler({
         httpsAgent: S3Service.createHttpsAgent(),
       }),
     });
+  }
+
+  private assertCredentialsConfigured() {
+    const accessKeyId =
+      this.configService.get<string>('AWS_ACCESS_KEY_ID')?.trim() || '';
+    const secretAccessKey =
+      this.configService.get<string>('AWS_SECRET_ACCESS_KEY')?.trim() || '';
+
+    if (!accessKeyId || !secretAccessKey) {
+      throw new InternalServerErrorException(
+        'S3 is not configured on this server. Set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY, then restart the backend.',
+      );
+    }
   }
 
   private static createHttpsAgent(): https.Agent {
@@ -170,6 +191,8 @@ export class S3Service {
     objectKey: string,
     contentType: string,
   ): Promise<S3UploadResult> {
+    this.assertCredentialsConfigured();
+
     if (!fileBuffer?.length) {
       throw new InternalServerErrorException(
         'Upload failed: empty file buffer',
@@ -213,6 +236,8 @@ export class S3Service {
   async getObjectBuffer(
     fileUrlOrKey: string,
   ): Promise<{ buffer: Buffer; contentType?: string; key: string }> {
+    this.assertCredentialsConfigured();
+
     const objectKey =
       this.getObjectKeyFromUrl(fileUrlOrKey, null) ||
       fileUrlOrKey.replace(/^\/+/, '');
@@ -269,6 +294,8 @@ export class S3Service {
     fallbackPath?: string | null,
     explicitKey?: string | null,
   ): Promise<boolean> {
+    this.assertCredentialsConfigured();
+
     const objectKey =
       explicitKey?.trim() || this.getObjectKeyFromUrl(fileUrl, fallbackPath);
     if (!objectKey) {
