@@ -49,6 +49,13 @@ import { migrateCmsImagesOntoParents } from './commonServices/migrate-cms-images
         synchronize: true,
         autoLoadEntities: true,
         logging: true,
+
+        extra: {
+          max: 5,
+          min: 1,
+          idleTimeoutMillis: 30000,
+          connectionTimeoutMillis: 10000,
+        },
       }),
       dataSourceFactory: async (options) => {
         if (!options) {
