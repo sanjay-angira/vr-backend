@@ -12,6 +12,11 @@ export function categoryImageSource(category: Category) {
   return { originalUrl: url, url };
 }
 
+export function categoryMobileImageSource(category: Category) {
+  const url = (category.mobileImage || '').trim();
+  return { originalUrl: url, url };
+}
+
 export function categoryImageAlt(category: Category, fallback = '') {
   return category.imageAltText || fallback;
 }

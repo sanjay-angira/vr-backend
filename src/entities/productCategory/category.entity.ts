@@ -46,11 +46,9 @@ export class Category {
   @Column({ type: 'varchar', length: 512, nullable: true })
   imageAltText!: string | null;
 
+  /** Category image shown on mobile (uploaded as WebP). */
   @Column({ type: 'varchar', length: 2048, nullable: true })
-  video!: string | null;
-
-  @Column({ type: 'varchar', length: 255, nullable: true })
-  icon!: string;
+  mobileImage!: string | null;
 
   @Column({ type: 'boolean', default: true })
   isActive!: boolean;

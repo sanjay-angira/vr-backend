@@ -14,6 +14,7 @@ import {
   bannerImageSource,
   blogImageSource,
   categoryImageSource,
+  categoryMobileImageSource,
   pickProductOrVariantCardImage,
 } from 'src/commonServices/image-relation.util';
 
@@ -309,6 +310,10 @@ export class CustomerHomepageService {
       name: category.categoryName,
       description: category.shortDescription || category.description || '',
       image: pickOptimizedImageUrl(categoryImageSource(category), 400),
+      mobileImage: pickOptimizedImageUrl(
+        categoryMobileImageSource(category),
+        400,
+      ),
       slug: category.categorySlug,
       href: category.categorySlug
         ? `/products?category=${encodeURIComponent(category.categorySlug)}`

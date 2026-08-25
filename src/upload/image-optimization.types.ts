@@ -9,7 +9,8 @@ export type ImageOptimizationType =
   | 'category'
   | 'blog'
   | 'banner'
-  | 'banner_mobile';
+  | 'banner_mobile'
+  | 'category_mobile';
 
 export type ImageOptimizationPreset = {
   type: ImageOptimizationType;
@@ -59,6 +60,13 @@ export const IMAGE_OPTIMIZATION_PRESETS: Record<
     folder: 'banners/mobile',
     widths: [1200],
     webpQuality: 85,
+    webpOnly: true,
+  },
+  category_mobile: {
+    type: 'category_mobile',
+    folder: 'categories/mobile',
+    widths: [800],
+    webpQuality: 82,
     webpOnly: true,
   },
 };

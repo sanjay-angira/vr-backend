@@ -30,6 +30,7 @@ import {
   bannerImageSource,
   categoryImageAlt,
   categoryImageSource,
+  categoryMobileImageSource,
   pickProductOrVariantCardImage,
 } from 'src/commonServices/image-relation.util';
 import { Order } from 'src/entities/order/order.entity';
@@ -410,6 +411,10 @@ export class CustomerService {
           slug: category.categorySlug,
           description: category.shortDescription || category.description || '',
           image: pickOptimizedImageUrl(categoryImageSource(category), 400),
+          mobileImage: pickOptimizedImageUrl(
+            categoryMobileImageSource(category),
+            400,
+          ),
           imageAlt: categoryImageAlt(category, category.categoryName),
           productCount,
           href: category.categorySlug
@@ -504,6 +509,9 @@ export class CustomerService {
           name: category.categoryName,
           slug: category.categorySlug,
           image: pickOptimizedImageUrl(categoryImageSource(category), 400) || null,
+          mobileImage:
+            pickOptimizedImageUrl(categoryMobileImageSource(category), 400) ||
+            null,
           parentId: category.parent?.id ?? null,
         })),
         priceRange: { min: minPrice, max: maxPrice },

@@ -140,15 +140,13 @@ export class CreateCategoryDto {
   @IsString()
   publishStatus?: string;
 
-  @ApiPropertyOptional({ description: 'Video URL on category' })
+  @ApiPropertyOptional({
+    example: 'https://example.com/images/spices-mobile.jpg',
+    description: 'Category image shown on mobile (uploaded as WebP)',
+  })
   @IsOptional()
   @IsString()
-  video?: string;
-
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsString()
-  icon?: string;
+  mobileImage?: string;
 
   @ApiPropertyOptional({ description: 'Image alt text on category' })
   @IsOptional()
@@ -222,15 +220,12 @@ export class UpdateCategoryDto {
   @IsString()
   publishStatus?: string;
 
-  @ApiPropertyOptional({ description: 'Video URL on category' })
+  @ApiPropertyOptional({
+    description: 'Category image shown on mobile (uploaded as WebP)',
+  })
   @IsOptional()
   @IsString()
-  video?: string | null;
-
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsString()
-  icon?: string;
+  mobileImage?: string | null;
 
   @ApiPropertyOptional({ description: 'Image alt text on category' })
   @IsOptional()

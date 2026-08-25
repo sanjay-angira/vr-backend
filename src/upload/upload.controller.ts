@@ -39,7 +39,7 @@ export class UploadController {
         path: { type: 'string', example: 'products/images' },
         imageType: {
           type: 'string',
-          enum: ['product', 'category', 'blog', 'banner', 'banner_mobile'],
+          enum: ['product', 'category', 'category_mobile', 'blog', 'banner', 'banner_mobile'],
         },
         entityId: { type: 'string' },
       },

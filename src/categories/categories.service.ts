@@ -39,8 +39,7 @@ export class CategoriesService {
       image,
       seo,
       publishStatus,
-      video,
-      icon,
+      mobileImage,
       imageAltText,
       showOnHomePage,
     } = createCategoryDto;
@@ -69,8 +68,7 @@ export class CategoriesService {
         publishStatus,
         image: image ?? null,
         imageAltText: imageAltText ?? null,
-        video: video ?? null,
-        icon,
+        mobileImage: mobileImage ?? null,
         showOnHomePage,
         parent,
         categoryOffers: offers,
@@ -159,8 +157,7 @@ export class CategoriesService {
       image,
       seo,
       publishStatus,
-      video,
-      icon,
+      mobileImage,
       imageAltText,
       showOnHomePage,
     } = updateCategoryDto;
@@ -190,12 +187,11 @@ export class CategoriesService {
       if (description !== undefined) category.description = description;
       if (isActive !== undefined) category.isActive = isActive;
       if (publishStatus !== undefined) category.publishStatus = publishStatus;
-      if (icon !== undefined) category.icon = icon;
       if (showOnHomePage !== undefined)
         category.showOnHomePage = showOnHomePage;
       if (image !== undefined) category.image = image;
       if (imageAltText !== undefined) category.imageAltText = imageAltText;
-      if (video !== undefined) category.video = video;
+      if (mobileImage !== undefined) category.mobileImage = mobileImage;
 
       if (seo) {
         if (category.seo) {
