@@ -48,8 +48,10 @@ export type AppliedOfferView = {
 };
 
 type BestAppliedOfferResult = AppliedOfferView & {
+  originalPrice: number;
   finalPrice: number;
   totalDiscount: number;
+  discountPercentage: number;
 };
 
 export type VariantPricingView = {
@@ -127,16 +129,22 @@ export class OfferPricingService {
     rawPrice: number | string | null | undefined,
     offers: Offer[],
   ): OfferPricingResult {
-    const originalPrice = Number(rawPrice);
+    const sellingPrice = Number(rawPrice);
 
-    if (
-      !Number.isFinite(originalPrice) ||
-      originalPrice <= 0 ||
-      !offers.length
-    ) {
+    if (!Number.isFinite(sellingPrice) || sellingPrice <= 0) {
       return {
-        originalPrice: Number.isFinite(originalPrice) ? originalPrice : null,
-        finalPrice: Number.isFinite(originalPrice) ? originalPrice : null,
+        originalPrice: null,
+        finalPrice: Number.isFinite(sellingPrice) ? sellingPrice : null,
+        discountAmount: 0,
+        discountPercentage: 0,
+        appliedOffer: null,
+      };
+    }
+
+    if (!offers.length) {
+      return {
+        originalPrice: null,
+        finalPrice: sellingPrice,
         discountAmount: 0,
         discountPercentage: 0,
         appliedOffer: null,
@@ -144,7 +152,7 @@ export class OfferPricingService {
     }
 
     const bestOffer = this.pickBestOfferFromList(
-      originalPrice,
+      sellingPrice,
       offers.map((offer) => ({
         offer,
         sources: [] as AppliedOfferView['sources'],
@@ -153,25 +161,19 @@ export class OfferPricingService {
 
     if (!bestOffer) {
       return {
-        originalPrice,
-        finalPrice: originalPrice,
+        originalPrice: null,
+        finalPrice: sellingPrice,
         discountAmount: 0,
         discountPercentage: 0,
         appliedOffer: null,
       };
     }
 
-    const discountAmount = bestOffer.totalDiscount;
-    const discountPercentage =
-      originalPrice > 0
-        ? Number(((discountAmount / originalPrice) * 100).toFixed(2))
-        : 0;
-
     return {
-      originalPrice,
-      finalPrice: bestOffer.finalPrice,
-      discountAmount,
-      discountPercentage,
+      originalPrice: bestOffer.originalPrice,
+      finalPrice: this.roundMoney(sellingPrice),
+      discountAmount: bestOffer.totalDiscount,
+      discountPercentage: bestOffer.discountPercentage,
       appliedOffer: {
         id: bestOffer.id,
         offerName: bestOffer.offerName,
@@ -205,9 +207,8 @@ export class OfferPricingService {
     product: Product,
     category: Category | null,
   ): VariantPricingView {
-    const sellingPrice = Number(variant.price);
-    const hasValidSellingPrice =
-      Number.isFinite(sellingPrice) && sellingPrice > 0;
+    const payPrice = Number(variant.price);
+    const hasValidPayPrice = Number.isFinite(payPrice) && payPrice > 0;
 
     const mergedActiveOffers = this.getMergedActiveOffers({
       productOffers: product.productOffers || [],
@@ -235,9 +236,9 @@ export class OfferPricingService {
       };
     });
 
-    const bestOffer = hasValidSellingPrice
+    const bestOffer = hasValidPayPrice
       ? this.pickBestOfferFromList(
-          sellingPrice,
+          payPrice,
           mergedActiveOffers as Array<{
             offer: Offer;
             sources: AppliedOfferView['sources'];
@@ -253,9 +254,12 @@ export class OfferPricingService {
       }));
 
     return {
-      sellingPrice: hasValidSellingPrice ? sellingPrice : null,
-      finalPrice:
-        bestOffer?.finalPrice ?? (hasValidSellingPrice ? sellingPrice : null),
+      sellingPrice: bestOffer
+        ? bestOffer.originalPrice
+        : hasValidPayPrice
+          ? payPrice
+          : null,
+      finalPrice: hasValidPayPrice ? payPrice : null,
       totalDiscount: bestOffer?.totalDiscount ?? 0,
       appliedOffer: bestOffer
         ? {
@@ -399,15 +403,22 @@ export class OfferPricingService {
       discountType: DiscountType;
       discountValue: number;
       sources: AppliedOfferView['sources'];
+      originalPrice: number;
       finalPrice: number;
       totalDiscount: number;
+      discountPercentage: number;
     } | null = null;
 
     for (const entry of mergedActiveOffers) {
       const calculated = this.calculatePriceForOffer(sellingPrice, entry.offer);
       const finalPrice = calculated.finalPrice;
+      const originalPrice = calculated.originalPrice;
 
-      if (finalPrice === null || finalPrice >= sellingPrice) {
+      if (
+        finalPrice === null ||
+        originalPrice === null ||
+        calculated.discountAmount <= 0
+      ) {
         continue;
       }
 
@@ -418,8 +429,10 @@ export class OfferPricingService {
         discountType: entry.offer.discountType,
         discountValue: Number(entry.offer.discountValue),
         sources: entry.sources,
+        originalPrice,
         finalPrice,
         totalDiscount: calculated.discountAmount,
+        discountPercentage: calculated.discountPercentage,
       };
 
       if (!bestCandidate) {
@@ -443,8 +456,10 @@ export class OfferPricingService {
       discountType: bestCandidate.discountType,
       discountValue: bestCandidate.discountValue,
       sources: bestCandidate.sources,
+      originalPrice: bestCandidate.originalPrice,
       finalPrice: bestCandidate.finalPrice,
       totalDiscount: bestCandidate.totalDiscount,
+      discountPercentage: bestCandidate.discountPercentage,
     };
   }
 
@@ -452,15 +467,15 @@ export class OfferPricingService {
     left: { id: number; finalPrice: number | null; totalDiscount: number },
     right: { id: number; finalPrice: number | null; totalDiscount: number },
   ): number {
+    if (left.totalDiscount !== right.totalDiscount) {
+      return right.totalDiscount - left.totalDiscount;
+    }
+
     const leftPrice = left.finalPrice ?? Number.POSITIVE_INFINITY;
     const rightPrice = right.finalPrice ?? Number.POSITIVE_INFINITY;
 
     if (leftPrice !== rightPrice) {
       return leftPrice - rightPrice;
-    }
-
-    if (left.totalDiscount !== right.totalDiscount) {
-      return right.totalDiscount - left.totalDiscount;
     }
 
     return left.id - right.id;
@@ -518,15 +533,16 @@ export class OfferPricingService {
     rawPrice: number | string | null | undefined,
     offer: Offer,
   ) {
-    const originalPrice = Number(rawPrice);
+    const sellingPrice = Number(rawPrice);
+    const discountValue = Number(offer.discountValue);
 
-    if (!Number.isFinite(originalPrice) || originalPrice <= 0) {
+    if (!Number.isFinite(sellingPrice) || sellingPrice <= 0) {
       return {
         offerId: offer.id,
         offerName: offer.offerName,
         offerSlug: offer.offerSlug,
         discountType: offer.discountType,
-        discountValue: Number(offer.discountValue),
+        discountValue: Number.isFinite(discountValue) ? discountValue : 0,
         originalPrice: null,
         finalPrice: null,
         discountAmount: 0,
@@ -534,32 +550,75 @@ export class OfferPricingService {
       };
     }
 
-    let discountedPrice = originalPrice;
-
-    if (offer.discountType === DiscountType.PERCENTAGE) {
-      discountedPrice =
-        originalPrice - (originalPrice * Number(offer.discountValue)) / 100;
-    } else if (offer.discountType === DiscountType.FIXED) {
-      discountedPrice = originalPrice - Number(offer.discountValue);
-    }
-
-    discountedPrice = Math.max(0, Number(discountedPrice.toFixed(2)));
-    const discountAmount = Number((originalPrice - discountedPrice).toFixed(2));
-    const discountPercentage =
-      originalPrice > 0
-        ? Number(((discountAmount / originalPrice) * 100).toFixed(2))
-        : 0;
+    const finalPrice = this.roundMoney(sellingPrice);
+    const crossedPrice = this.calculateCrossedPrice(
+      finalPrice,
+      offer.discountType,
+      discountValue,
+    );
+    const discountAmount = crossedPrice
+      ? this.roundMoney(crossedPrice - finalPrice)
+      : 0;
+    const hasCrossedPrice = crossedPrice != null && discountAmount > 0;
+    const discountPercentage = hasCrossedPrice
+      ? offer.discountType === DiscountType.PERCENTAGE
+        ? this.roundMoney(discountValue)
+        : this.roundMoney((discountAmount / crossedPrice) * 100)
+      : 0;
 
     return {
       offerId: offer.id,
       offerName: offer.offerName,
       offerSlug: offer.offerSlug,
       discountType: offer.discountType,
-      discountValue: Number(offer.discountValue),
-      originalPrice,
-      finalPrice: discountedPrice,
-      discountAmount,
+      discountValue: Number.isFinite(discountValue) ? discountValue : 0,
+      originalPrice: hasCrossedPrice ? crossedPrice : null,
+      finalPrice,
+      discountAmount: hasCrossedPrice ? discountAmount : 0,
       discountPercentage,
     };
+  }
+
+  /**
+   * Stored price P is always what the customer pays.
+   * Percentage: crossed MRP = P / (1 - D/100). Never divide when D >= 100.
+   * Decimal MRPs are rounded up to the next ₹10 (1111.11 → 1120).
+   * Fixed: crossed MRP = P + amount (same display rounding).
+   */
+  private calculateCrossedPrice(
+    sellingPrice: number,
+    discountType: DiscountType,
+    discountValue: number,
+  ): number | null {
+    if (!Number.isFinite(discountValue) || discountValue <= 0) {
+      return null;
+    }
+
+    if (discountType === DiscountType.PERCENTAGE) {
+      if (discountValue >= 100) {
+        return null;
+      }
+      return this.ceilDisplayMrp(
+        sellingPrice / (1 - discountValue / 100),
+      );
+    }
+
+    if (discountType === DiscountType.FIXED) {
+      return this.ceilDisplayMrp(sellingPrice + discountValue);
+    }
+
+    return null;
+  }
+
+  private roundMoney(value: number): number {
+    return Number(value.toFixed(2));
+  }
+
+  private ceilDisplayMrp(value: number): number {
+    const rounded = this.roundMoney(value);
+    if (Number.isInteger(rounded)) {
+      return rounded;
+    }
+    return Math.ceil(rounded / 10) * 10;
   }
 }

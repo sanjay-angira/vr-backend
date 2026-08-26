@@ -281,7 +281,7 @@ export class CustomerHomepageService {
       name: `${product.productName || ''}${variant.name ? ` ${variant.name}` : ''}`.trim(),
       description: product.shortDescription || product.description || '',
       price: pricing.finalPrice ?? (Number(variant.price) || 0),
-      originalPrice: pricing.originalPrice ?? (Number(variant.price) || 0),
+      originalPrice: pricing.originalPrice,
       discountAmount: pricing.discountAmount,
       discountPercentage: pricing.discountPercentage,
       appliedOffer: pricing.appliedOffer,
