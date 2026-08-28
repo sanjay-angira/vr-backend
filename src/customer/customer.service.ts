@@ -43,6 +43,7 @@ import { VerifyRazorpayPaymentDto } from 'src/dto/razorpay-payment.dto';
 import { StoreProductsQueryDto } from 'src/dto/store-products.dto';
 import { CustomerAddressService } from './customer-address.service';
 import { Coupon, DiscountType } from 'src/entities/user/coupon.entity';
+import { Offer } from 'src/entities/product/offer.entity';
 import { ApplyCouponDto } from 'src/dto/coupon.dto';
 
 type ResolvedCheckoutCoupon = {
@@ -113,6 +114,8 @@ export class CustomerService {
     private readonly orderItemRepository: Repository<OrderItem>,
     @InjectRepository(Coupon)
     private readonly couponRepository: Repository<Coupon>,
+    @InjectRepository(Offer)
+    private readonly offerRepository: Repository<Offer>,
     private readonly offerPricingService: OfferPricingService,
     private readonly razorpayService: RazorpayService,
     private readonly customerAddressService: CustomerAddressService,
@@ -571,7 +574,7 @@ export class CustomerService {
   }
 
   async getStoreFilters() {
-    const [categories, priceBounds, banners, productSections] =
+    const [categories, priceBounds, banners, productSections, offers] =
       await Promise.all([
         this.categoryRepository
           .createQueryBuilder('category')
@@ -601,6 +604,10 @@ export class CustomerService {
           where: { status: true },
           order: { position: 'ASC', id: 'ASC' },
         }),
+        this.offerRepository.find({
+          where: { isActive: true },
+          order: { offerName: 'ASC', id: 'ASC' },
+        }),
       ]);
 
     const minPrice = Math.max(
@@ -629,14 +636,15 @@ export class CustomerService {
           typeof section.data?.heading === 'string'
             ? section.data.heading.trim()
             : '';
+        const title = String(section.title || '').trim();
         const slug =
           (section.slug && String(section.slug).trim()) ||
           this.slugifySectionTitle(
-            heading || section.title || `section-${section.id}`,
+            title || heading || `section-${section.id}`,
           );
         return {
           slug,
-          title: heading || section.title,
+          title: title || heading,
           type: section.type,
         };
       })
@@ -670,6 +678,21 @@ export class CustomerService {
           })),
         ],
         productSections: productSectionOptions,
+        ratingOptions: [
+          { value: 4, label: '4 Stars & Up' },
+          { value: 3, label: '3 Stars & Up' },
+          { value: 2, label: '2 Stars & Up' },
+          { value: 1, label: '1 Star & Up' },
+        ],
+        offers: offers
+          .filter((offer) => this.isStoreOfferLive(offer))
+          .map((offer) => ({
+            id: offer.id,
+            name: offer.offerName || offer.offerSlug || `Offer ${offer.id}`,
+            slug: offer.offerSlug,
+            discountType: offer.discountType,
+            discountValue: Number(offer.discountValue) || 0,
+          })),
         banners: banners.map((banner) => ({
           id: banner.id,
           title: banner.title,
@@ -720,6 +743,16 @@ export class CustomerService {
       maxPriceRaw !== null &&
       String(maxPriceRaw).trim() !== '' &&
       Number.isFinite(maxPrice);
+    const minRatingRaw = query.minRating;
+    const minRatingValue = Number(minRatingRaw);
+    const hasMinRating =
+      minRatingRaw !== undefined &&
+      minRatingRaw !== null &&
+      String(minRatingRaw).trim() !== '' &&
+      Number.isFinite(minRatingValue);
+    const minRating = hasMinRating
+      ? Math.min(5, Math.max(1, Math.floor(minRatingValue)))
+      : 0;
     const sortBy = (query.sortBy || 'newest').trim().toLowerCase();
     const newArrivals = this.parseBooleanFlag(query.newArrivals);
     const featured = this.parseBooleanFlag(query.featured);
@@ -728,6 +761,22 @@ export class CustomerService {
       .split(',')
       .map((slug) => slug.trim().toLowerCase())
       .filter((slug) => Boolean(slug));
+    const minDiscountRaw = query.minDiscount;
+    const minDiscountValue = Number(minDiscountRaw);
+    const hasMinDiscount =
+      minDiscountRaw !== undefined &&
+      minDiscountRaw !== null &&
+      String(minDiscountRaw).trim() !== '' &&
+      Number.isFinite(minDiscountValue) &&
+      minDiscountValue > 0;
+    const minDiscount = hasMinDiscount
+      ? Math.min(100, Math.max(1, Math.floor(minDiscountValue)))
+      : 0;
+    const offerIds = (query.offerIds || '')
+      .split(',')
+      .map((id) => Number(id.trim()))
+      .filter((id) => Number.isFinite(id) && id > 0);
+    const hasOfferIds = offerIds.length > 0;
 
     try {
       // Step 1: collect product ids without heavy joins (avoids distinct/join drops)
@@ -780,6 +829,18 @@ export class CustomerService {
           });
       }
 
+      if (hasMinRating) {
+        idQb.andWhere(
+          `(
+            SELECT COALESCE(AVG(review.rating), 0)
+            FROM reviews review
+            WHERE review."productId" = product.id
+              AND review."isApproved" = true
+          ) >= :minRating`,
+          { minRating },
+        );
+      }
+
       const idRows = await idQb
         .distinct(true)
         .orderBy('product.createdAt', 'DESC')
@@ -809,6 +870,8 @@ export class CustomerService {
         hasMinPrice ||
         hasMaxPrice ||
         bestDeals ||
+        hasOfferIds ||
+        hasMinDiscount ||
         sortBy === 'price_asc' ||
         sortBy === 'price_desc' ||
         sortBy === 'discount_desc' ||
@@ -841,6 +904,7 @@ export class CustomerService {
         .leftJoinAndSelect('variants.productVariantOffers', 'variantOffers')
         .leftJoinAndSelect('product.images', 'productImages')
         .leftJoinAndSelect('product.category', 'category')
+        .leftJoinAndSelect('category.categoryOffers', 'categoryOffers')
         .leftJoinAndSelect('product.brand', 'brand')
         .leftJoinAndSelect('brand.brandOffers', 'brandOffers')
         .leftJoinAndSelect('product.productOffers', 'productOffers')
@@ -880,6 +944,39 @@ export class CustomerService {
         filtered = filtered.filter((row) => row.hasDeal);
       }
 
+      if (hasMinDiscount) {
+        filtered = filtered.filter(
+          (row) => Number(row.discountPercentage || 0) >= minDiscount,
+        );
+      }
+
+      if (hasOfferIds) {
+        const offerIdSet = new Set(offerIds);
+        const attachedByProduct = new Map<number, Set<number>>();
+        for (const product of orderedProducts) {
+          attachedByProduct.set(
+            product.id,
+            this.collectAttachedOfferIds(product),
+          );
+        }
+        filtered = filtered.filter((row) => {
+          const appliedId = this.storeCardAppliedOfferId(row);
+          if (appliedId != null && offerIdSet.has(appliedId)) return true;
+          const attached = attachedByProduct.get(row.productId);
+          if (!attached) return false;
+          for (const id of offerIdSet) {
+            if (attached.has(id)) return true;
+          }
+          return false;
+        });
+      }
+
+      if (hasMinRating && needsFullScan) {
+        filtered = filtered.filter(
+          (row) => Number(row.rating || 0) >= minRating,
+        );
+      }
+
       filtered = this.sortStoreProducts(filtered, sortBy);
 
       const count = needsFullScan ? filtered.length : productIds.length;
@@ -900,6 +997,39 @@ export class CustomerService {
     if (!value) return false;
     const normalized = value.trim().toLowerCase();
     return normalized === '1' || normalized === 'true' || normalized === 'yes';
+  }
+
+  private isStoreOfferLive(offer: Offer): boolean {
+    if (!offer?.isActive) return false;
+    if (!offer.timeBased) return true;
+    const now = new Date();
+    if (offer.startDate && now < new Date(offer.startDate)) return false;
+    if (offer.endDate && now > new Date(offer.endDate)) return false;
+    return true;
+  }
+
+  private collectAttachedOfferIds(product: Product): Set<number> {
+    const ids = new Set<number>();
+    const add = (offers?: Offer[]) => {
+      for (const offer of offers || []) {
+        const id = Number(offer?.id);
+        if (Number.isFinite(id) && id > 0) ids.add(id);
+      }
+    };
+    add(product.productOffers);
+    add(product.brand?.brandOffers);
+    add(product.category?.categoryOffers);
+    for (const variant of product.variants || []) {
+      add(variant.productVariantOffers);
+    }
+    return ids;
+  }
+
+  private storeCardAppliedOfferId(row: StoreProductCard): number | null {
+    const offer = row.appliedOffer;
+    if (!offer || typeof offer !== 'object' || !('id' in offer)) return null;
+    const id = Number((offer as { id?: unknown }).id);
+    return Number.isFinite(id) && id > 0 ? id : null;
   }
 
   private sortStoreProducts(

@@ -28,6 +28,7 @@ import { CustomerWishlistService } from './customer-wishlist.service';
 import { Coupon } from 'src/entities/user/coupon.entity';
 import { RecentlyViewed } from 'src/entities/recently-viewed/recently-viewed.entity';
 import { CustomerRecentlyViewedService } from './customer-recently-viewed.service';
+import { Offer } from 'src/entities/product/offer.entity';
 
 @Module({
   imports: [
@@ -50,6 +51,7 @@ import { CustomerRecentlyViewedService } from './customer-recently-viewed.servic
       WishlistItem,
       Coupon,
       RecentlyViewed,
+      Offer,
     ]),
     CommonModule,
   ],

@@ -153,6 +153,24 @@ export class CustomerController {
   @ApiQuery({ name: 'minPrice', required: false, type: Number })
   @ApiQuery({ name: 'maxPrice', required: false, type: Number })
   @ApiQuery({
+    name: 'minRating',
+    required: false,
+    type: Number,
+    description: 'Minimum average approved rating (1–5)',
+  })
+  @ApiQuery({
+    name: 'minDiscount',
+    required: false,
+    type: Number,
+    description: 'Minimum applied offer discount percentage (10, 20, 30, 40, 50)',
+  })
+  @ApiQuery({
+    name: 'offerIds',
+    required: false,
+    type: String,
+    description: 'Comma-separated offer ids',
+  })
+  @ApiQuery({
     name: 'sortBy',
     required: false,
     enum: ['newest', 'price_asc', 'price_desc', 'name_asc', 'discount_desc'],
