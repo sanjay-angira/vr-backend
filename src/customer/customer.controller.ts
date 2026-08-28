@@ -98,6 +98,30 @@ export class CustomerController {
     return this.customerBlogService.getBlogBySlug(slug);
   }
 
+  @Get('search')
+  @ApiOperation({
+    summary:
+      'Header autocomplete: matching published products and categories',
+  })
+  @ApiQuery({
+    name: 'q',
+    required: true,
+    type: String,
+    description: 'Search text (product name/slug and category name/slug)',
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    type: Number,
+    description: 'Max products and categories to return (default 8, max 20)',
+  })
+  async searchStore(
+    @Query('q') q?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.customerService.searchStore(q, limit);
+  }
+
   @Get('categories')
   @ApiOperation({ summary: 'Get all published product categories for website' })
   async getCategories() {

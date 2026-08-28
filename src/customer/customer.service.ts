@@ -388,6 +388,7 @@ export class CustomerService {
   async getStoreCategories() {
     const categories = await this.categoryRepository
       .createQueryBuilder('category')
+      .leftJoinAndSelect('category.parent', 'parent')
       .where('category.isActive = :isActive', { isActive: true })
       .andWhere('category.publishStatus = :publishStatus', {
         publishStatus: 'published',
@@ -417,8 +418,9 @@ export class CustomerService {
           ),
           imageAlt: categoryImageAlt(category, category.categoryName),
           productCount,
+          parentId: category.parent?.id ?? null,
           href: category.categorySlug
-            ? `/products?category=${encodeURIComponent(category.categorySlug)}`
+            ? `/category/${encodeURIComponent(category.categorySlug)}`
             : `/products`,
         };
       }),
@@ -427,6 +429,144 @@ export class CustomerService {
     return successResponse(
       { rows, count: rows.length },
       'Categories retrieved successfully',
+    );
+  }
+
+  async searchStore(q?: string, limitRaw?: string | number) {
+    const query = String(q || '').trim().slice(0, 80);
+    const safe = query.replace(/[%_\\]/g, '').trim();
+    const parsed = Number(limitRaw);
+    const limit = Number.isFinite(parsed)
+      ? Math.min(Math.max(Math.trunc(parsed), 1), 20)
+      : 8;
+
+    if (safe.length < 1) {
+      return successResponse(
+        { query, products: [], categories: [] },
+        'Search results retrieved successfully',
+      );
+    }
+
+    const like = `%${safe}%`;
+    const needle = safe.toLowerCase();
+
+    const [idRows, categoryEntities] = await Promise.all([
+      this.productRepository
+        .createQueryBuilder('product')
+        .select('product.id', 'id')
+        .addSelect('product.productName', 'productName')
+        .leftJoin('product.category', 'category')
+        .leftJoin('product.variants', 'variants')
+        .where('product.isActive = :isActive', { isActive: true })
+        .andWhere('product.publishStatus = :publishStatus', {
+          publishStatus: PublishStatus.PUBLISHED,
+        })
+        .andWhere(
+          `(product.productName ILIKE :like
+            OR product.productSlug ILIKE :like
+            OR variants.name ILIKE :like
+            OR variants.slug ILIKE :like
+            OR category.categoryName ILIKE :like
+            OR category.categorySlug ILIKE :like)`,
+          { like },
+        )
+        .distinct(true)
+        .getRawMany<{ id: string | number; productName: string }>(),
+      this.categoryRepository
+        .createQueryBuilder('category')
+        .where('category.isActive = :isActive', { isActive: true })
+        .andWhere('category.publishStatus = :publishStatus', {
+          publishStatus: 'published',
+        })
+        .andWhere(
+          `(category.categoryName ILIKE :like
+            OR category.categorySlug ILIKE :like)`,
+          { like },
+        )
+        .orderBy('category.categoryName', 'ASC')
+        .take(limit)
+        .getMany(),
+    ]);
+
+    const seenIds = new Set<number>();
+    const rankedIds = idRows
+      .map((row) => ({
+        id: Number(row.id),
+        name: String(row.productName || ''),
+      }))
+      .filter((row) => {
+        if (!Number.isFinite(row.id) || row.id <= 0 || seenIds.has(row.id)) {
+          return false;
+        }
+        seenIds.add(row.id);
+        return true;
+      })
+      .sort((a, b) => {
+        const rank = (name: string) =>
+          name.toLowerCase().startsWith(needle) ? 0 : 1;
+        return rank(a.name) - rank(b.name) || a.name.localeCompare(b.name);
+      })
+      .slice(0, limit)
+      .map((row) => row.id);
+
+    const productEntities =
+      rankedIds.length > 0
+        ? await this.productRepository.find({
+            where: { id: In(rankedIds) },
+            relations: ['category', 'images', 'variants', 'variants.images'],
+          })
+        : [];
+
+    const productById = new Map(
+      productEntities.map((product) => [product.id, product]),
+    );
+
+    const products = rankedIds
+      .map((id) => productById.get(id))
+      .filter((product): product is Product => Boolean(product))
+      .map((product) => {
+        const variant = (product.variants || [])[0];
+        const slug = product.productSlug || null;
+        const category = product.category;
+
+        return {
+          id: product.id,
+          name: product.productName || '',
+          slug,
+          image: pickProductOrVariantCardImage(
+            product.images,
+            variant?.images,
+            200,
+          ),
+          href: slug
+            ? `/product/${encodeURIComponent(slug)}`
+            : '/products',
+          category: category
+            ? {
+                id: category.id,
+                name: category.categoryName,
+                slug: category.categorySlug || null,
+                href: category.categorySlug
+                  ? `/category/${encodeURIComponent(category.categorySlug)}`
+                  : '/products',
+              }
+            : null,
+        };
+      });
+
+    const categories = categoryEntities.map((category) => ({
+      id: category.id,
+      name: category.categoryName,
+      slug: category.categorySlug || null,
+      image: pickOptimizedImageUrl(categoryImageSource(category), 200),
+      href: category.categorySlug
+        ? `/category/${encodeURIComponent(category.categorySlug)}`
+        : '/products',
+    }));
+
+    return successResponse(
+      { query, products, categories },
+      'Search results retrieved successfully',
     );
   }
 
