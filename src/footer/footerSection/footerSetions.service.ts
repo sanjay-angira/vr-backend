@@ -21,7 +21,10 @@ export class FooterSectionsService {
   }
 
   create(payload: Partial<FooterSection>) {
-    const section = this.footerSectionRepo.create(payload);
+    const section = this.footerSectionRepo.create({
+      ...payload,
+      type: 'menu',
+    });
 
     return this.footerSectionRepo.save(section);
   }
@@ -35,7 +38,7 @@ export class FooterSectionsService {
       throw new NotFoundException();
     }
 
-    Object.assign(section, payload);
+    Object.assign(section, payload, { type: 'menu' });
 
     return this.footerSectionRepo.save(section);
   }

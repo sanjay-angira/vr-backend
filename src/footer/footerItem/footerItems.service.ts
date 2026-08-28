@@ -3,10 +3,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { FooterItem } from 'src/entities/CMS/footer/footerItem.entity';
-import {
-  errorResponse,
-  successResponse,
-} from 'src/commonServices/response.service';
+import { successResponse } from 'src/commonServices/response.service';
 @Injectable()
 export class FooterItemsService {
   constructor(

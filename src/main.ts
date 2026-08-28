@@ -6,6 +6,7 @@ import { DataSource } from 'typeorm';
 import { renameProductImageUrlColumns } from './commonServices/rename-product-image-url';
 import { migrateCmsImagesOntoParents } from './commonServices/migrate-cms-images-onto-parents';
 import { removeHeaderCms } from './commonServices/remove-header-cms';
+import { removeUnusedFooterCms } from './commonServices/remove-unused-footer-cms';
 
 async function prepareImageUrlColumns() {
   const prep = new DataSource({
@@ -24,6 +25,7 @@ async function prepareImageUrlColumns() {
     await renameProductImageUrlColumns(prep);
     await migrateCmsImagesOntoParents(prep);
     await removeHeaderCms(prep);
+    await removeUnusedFooterCms(prep);
   } finally {
     await prep.destroy();
   }
