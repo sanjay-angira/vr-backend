@@ -512,4 +512,35 @@ export class CustomerController {
       sessionId || null,
     );
   }
+
+  @Post('reviews')
+  @ApiOperation({ summary: 'Submit a product review (pending approval)' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['productId', 'userId', 'rating', 'comment'],
+      properties: {
+        productId: { type: 'number', example: 1 },
+        userId: { type: 'number', example: 1 },
+        rating: { type: 'number', example: 5 },
+        comment: { type: 'string', example: 'Great quality and fast delivery.' },
+      },
+    },
+  })
+  createReview(
+    @Body()
+    body: {
+      productId?: number;
+      userId?: number;
+      rating?: number;
+      comment?: string;
+    },
+  ) {
+    return this.customerService.createCustomerReview({
+      productId: Number(body.productId),
+      userId: Number(body.userId),
+      rating: Number(body.rating),
+      comment: String(body.comment || ''),
+    });
+  }
 }

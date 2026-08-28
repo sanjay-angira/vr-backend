@@ -18,6 +18,7 @@ import { ProductImage } from 'src/entities/product/product-images.entity';
 import { ProductAttribute } from 'src/entities/product/product-attribute.entity';
 import { Faq } from 'src/entities/product/faq.entity';
 import { Review } from 'src/entities/product/review.entity';
+import { User } from 'src/entities/user/user.entity';
 import { Cart } from 'src/entities/cart/cart.entity';
 import { CartItem } from 'src/entities/cart/cart-item.entity';
 import { Banner } from 'src/entities/CMS/banner.entity';
@@ -1240,6 +1241,8 @@ export class CustomerService {
           }),
           this.dataSource.getRepository(Review).find({
             where: { product: { id: product.id }, isApproved: true },
+            relations: { user: true },
+            order: { createdAt: 'DESC' },
           }),
         ]);
 
@@ -1247,7 +1250,20 @@ export class CustomerService {
       product.images = images;
       product.productAttributes = productAttributes;
       product.faqs = faqs;
-      product.reviews = reviews;
+      product.reviews = reviews.map((review) => {
+        const fromUser = [review.user?.firstName, review.user?.lastName]
+          .filter(Boolean)
+          .join(' ')
+          .trim();
+        return {
+          id: review.id,
+          rating: review.rating,
+          comment: review.comment,
+          userName: review.userName || fromUser || 'Customer',
+          verified: Boolean(review.user) && !review.isManual,
+          createdAt: review.createdAt,
+        };
+      }) as unknown as Review[];
 
       if (product.category) {
         const categoryWithHierarchy =
@@ -2406,5 +2422,70 @@ export class CustomerService {
     const count = cart.items.reduce((sum, item) => sum + item.quantity, 0);
 
     return { count };
+  }
+
+  async createCustomerReview(dto: {
+    productId: number;
+    userId: number;
+    rating: number;
+    comment: string;
+  }) {
+    const productId = Number(dto.productId);
+    const userId = Number(dto.userId);
+    const rating = Math.round(Number(dto.rating));
+    const comment = String(dto.comment || '').trim();
+
+    if (!Number.isFinite(productId) || productId <= 0) {
+      return errorResponse('productId is required', 400);
+    }
+    if (!Number.isFinite(userId) || userId <= 0) {
+      return errorResponse('userId is required', 400);
+    }
+    if (!Number.isFinite(rating) || rating < 1 || rating > 5) {
+      return errorResponse('rating must be between 1 and 5', 400);
+    }
+    if (comment.length < 10) {
+      return errorResponse('Please write at least 10 characters', 400);
+    }
+
+    const product = await this.productRepository.findOne({
+      where: { id: productId, isActive: true },
+    });
+    if (!product) {
+      return errorResponse('Product not found', 404);
+    }
+
+    const user = await this.dataSource.getRepository(User).findOne({
+      where: { id: userId },
+    });
+    if (!user) {
+      return errorResponse('User not found', 404);
+    }
+
+    const reviewRepo = this.dataSource.getRepository(Review);
+    const existing = await reviewRepo.findOne({
+      where: { product: { id: productId }, user: { id: userId } },
+    });
+    if (existing) {
+      return errorResponse('You have already reviewed this product', 409);
+    }
+
+    const review = await reviewRepo.save(
+      reviewRepo.create({
+        rating,
+        comment,
+        isApproved: false,
+        isManual: false,
+        userName: null,
+        product,
+        user,
+      }),
+    );
+
+    return successResponse(
+      { id: review.id },
+      'Thank you. Your review will appear after approval.',
+      201,
+    );
   }
 }
