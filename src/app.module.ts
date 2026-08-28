@@ -27,10 +27,10 @@ import { CmsSectionModule } from './cms-section/cms-section.module';
 import { FooterModule } from './footer/footer.module';
 import { UploadModule } from './upload/upload.module';
 import { CmsPageModule } from './cms-page/cms-page.module';
-import { HeaderModule } from './header/header.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { renameProductImageUrlColumns } from './commonServices/rename-product-image-url';
 import { migrateCmsImagesOntoParents } from './commonServices/migrate-cms-images-onto-parents';
+import { removeHeaderCms } from './commonServices/remove-header-cms';
 
 // Main application module
 @Module({
@@ -74,6 +74,7 @@ import { migrateCmsImagesOntoParents } from './commonServices/migrate-cms-images
         try {
           await renameProductImageUrlColumns(prep);
           await migrateCmsImagesOntoParents(prep);
+          await removeHeaderCms(prep);
         } finally {
           await prep.destroy();
         }
@@ -109,7 +110,6 @@ import { migrateCmsImagesOntoParents } from './commonServices/migrate-cms-images
     FooterModule,
     UploadModule,
     CmsPageModule,
-    HeaderModule,
     DashboardModule,
   ],
   controllers: [],
