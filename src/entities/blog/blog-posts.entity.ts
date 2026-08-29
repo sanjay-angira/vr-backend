@@ -6,6 +6,7 @@ import {
   UpdateDateColumn,
   ManyToOne,
   ManyToMany,
+  JoinColumn,
   JoinTable,
   OneToOne,
 } from 'typeorm';
@@ -80,6 +81,7 @@ export class BlogPost {
     onDelete: 'SET NULL',
     nullable: true,
   })
+  @JoinColumn({ name: 'sectionId' })
   section!: CmsSection | null;
 
   @CreateDateColumn({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })

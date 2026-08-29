@@ -185,8 +185,9 @@ export class CmsSectionService implements OnModuleInit {
   }
 
   /**
-   * Category/Blog/etc. still own a single FK (`sectionId`). Sync the owning
-   * side explicitly so admin layout selections stick.
+   * Category/Blog/etc. still own a single FK (`sectionId`). QueryBuilder
+   * `.set({ section: { id } })` is a no-op in TypeORM (relation objects are
+   * not columns), so write the join column directly.
    */
   private async syncOwnedSectionRelation<T extends { id: number }>(
     repo: Repository<T>,
@@ -203,21 +204,22 @@ export class CmsSectionService implements OnModuleInit {
       ),
     ];
 
-    await repo
-      .createQueryBuilder()
-      .update()
-      .set({ section: null } as any)
-      .where('sectionId = :sectionId', { sectionId })
-      .execute();
+    const relation = repo.metadata.findRelationWithPropertyPath('section');
+    const fkColumn =
+      relation?.joinColumns?.[0]?.databaseName || 'sectionId';
+    const table = repo.metadata.tableName;
+
+    await repo.manager.query(
+      `UPDATE "${table}" SET "${fkColumn}" = NULL WHERE "${fkColumn}" = $1`,
+      [sectionId],
+    );
 
     if (!uniqueIds.length) return;
 
-    await repo
-      .createQueryBuilder()
-      .update()
-      .set({ section: { id: sectionId } } as any)
-      .where('id IN (:...ids)', { ids: uniqueIds })
-      .execute();
+    await repo.manager.query(
+      `UPDATE "${table}" SET "${fkColumn}" = $1 WHERE id = ANY($2::int[])`,
+      [sectionId, uniqueIds],
+    );
   }
 
   private async syncSectionRelations(
