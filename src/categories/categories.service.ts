@@ -1,17 +1,21 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { IsNull, Repository } from 'typeorm';
+import { EntityManager, IsNull, Repository } from 'typeorm';
 import { Category } from '../entities/productCategory/category.entity';
 import { CategorySeo } from '../entities/productCategory/category-seo.entity';
 import { Product } from '../entities/product/product.entity';
 import { UtilityService } from 'src/commonServices/utility.service';
-import {
-  successResponse,
-  errorResponse,
-} from 'src/commonServices/response.service';
+import { successResponse } from 'src/commonServices/response.service';
 import { IdDto, PaginationDto } from 'src/dto/common.dto';
 import { CreateCategoryDto, UpdateCategoryDto } from 'src/dto/category.dto';
 import { Offer } from 'src/entities/product/offer.entity';
+
+/** FKs to `product` without ON DELETE CASCADE in the DB: [table, column]. */
+const PRODUCT_NO_CASCADE_REFERENCES: ReadonlyArray<[string, string]> = [
+  ['cms_section_products', 'productId'],
+  ['product_frequently_bought_together_product', 'productId_2'],
+  ['product_frequently_bought', 'related_product_id'],
+];
 
 @Injectable()
 export class CategoriesService {
@@ -20,8 +24,6 @@ export class CategoriesService {
     private readonly categoryRepo: Repository<Category>,
     @InjectRepository(CategorySeo)
     private readonly categorySeoRepo: Repository<CategorySeo>,
-    @InjectRepository(Product)
-    private readonly productsRepo: Repository<Product>,
     @InjectRepository(Offer)
     private readonly offerRepo: Repository<Offer>,
     private readonly utilityService: UtilityService,
@@ -228,25 +230,126 @@ export class CategoriesService {
 
   async remove(id: number) {
     try {
-      const productCount = await this.productsRepo.count({
-        where: { category: { id } },
-      });
-
-      if (productCount > 0) {
-        return errorResponse(
-          `Cannot delete category because ${productCount} product(s) are still associated with it. Please reassign or delete the products first.`,
-          400,
-        );
-      }
-
       const category = await this.categoryRepo.findOne({ where: { id } });
       if (!category) throw new NotFoundException('Category not found');
 
-      await this.categoryRepo.remove(category);
-      return successResponse({ deleted: true }, 'Category deleted');
+      const { categoryCount, productCount } =
+        await this.categoryRepo.manager.transaction(async (manager) => {
+          const levels = await this.collectCategoryLevels(manager, id);
+          const categoryIds = levels.flat();
+
+          const productRows: { id: number }[] = await manager
+            .createQueryBuilder(Product, 'product')
+            .select('product.id', 'id')
+            .where('"product"."categoryId" IN (:...categoryIds)', {
+              categoryIds,
+            })
+            .getRawMany();
+          const productIds = productRows.map((row) => Number(row.id));
+
+          if (productIds.length > 0) {
+            for (const [table, column] of PRODUCT_NO_CASCADE_REFERENCES) {
+              await this.deleteRowsReferencing(
+                manager,
+                table,
+                column,
+                productIds,
+              );
+            }
+
+            await manager
+              .createQueryBuilder()
+              .delete()
+              .from(Product)
+              .whereInIds(productIds)
+              .execute();
+          }
+
+          await manager
+            .createQueryBuilder()
+            .delete()
+            .from(CategorySeo)
+            .where('"categoryId" IN (:...categoryIds)', { categoryIds })
+            .execute();
+
+          // Children reference parents without ON DELETE CASCADE, so delete
+          // the deepest level first.
+          for (const levelIds of [...levels].reverse()) {
+            await manager
+              .createQueryBuilder()
+              .delete()
+              .from(Category)
+              .whereInIds(levelIds)
+              .execute();
+          }
+
+          return {
+            categoryCount: categoryIds.length,
+            productCount: productIds.length,
+          };
+        });
+
+      const subcategoryCount = categoryCount - 1;
+      return successResponse(
+        {
+          deleted: true,
+          deletedSubcategories: subcategoryCount,
+          deletedProducts: productCount,
+        },
+        `Category deleted along with ${subcategoryCount} subcategor${subcategoryCount === 1 ? 'y' : 'ies'} and ${productCount} product(s)`,
+      );
     } catch (error) {
       throw error;
     }
+  }
+
+  /** Skips tables that don't exist (legacy tables may be absent in some environments). */
+  private async deleteRowsReferencing(
+    manager: EntityManager,
+    table: string,
+    column: string,
+    ids: number[],
+  ): Promise<void> {
+    const [{ exists }] = await manager.query(
+      `SELECT to_regclass($1) IS NOT NULL AS "exists"`,
+      [`public.${table}`],
+    );
+    if (!exists) return;
+
+    await manager.query(
+      `DELETE FROM "public"."${table}" WHERE "${column}" = ANY($1::int[])`,
+      [ids],
+    );
+  }
+
+  /** Returns category ids grouped by depth: [[rootId], [children], [grandchildren], ...]. */
+  private async collectCategoryLevels(
+    manager: EntityManager,
+    rootId: number,
+  ): Promise<number[][]> {
+    const levels: number[][] = [[rootId]];
+    const seen = new Set<number>([rootId]);
+    let current = [rootId];
+
+    while (current.length > 0) {
+      const children: { id: number }[] = await manager
+        .createQueryBuilder(Category, 'category')
+        .select('category.id', 'id')
+        .where('"category"."parentId" IN (:...parentIds)', {
+          parentIds: current,
+        })
+        .getRawMany();
+
+      const next = children
+        .map((row) => Number(row.id))
+        .filter((childId) => !seen.has(childId));
+      next.forEach((childId) => seen.add(childId));
+
+      if (next.length > 0) levels.push(next);
+      current = next;
+    }
+
+    return levels;
   }
 
   async findById(dto: IdDto) {
