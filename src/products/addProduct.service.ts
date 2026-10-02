@@ -15,12 +15,10 @@ import {
 import { Tags } from 'src/entities/product/tags.entity';
 import { Offer } from 'src/entities/product/offer.entity';
 import { Brand } from 'src/entities/product/brand.entity';
-import { ProductImage } from 'src/entities/product/product-images.entity';
 import { ProductAttribute } from 'src/entities/product/product-attribute.entity';
 import { Attribute } from 'src/entities/product/attribute.entity';
 import { AddProductSeoService } from './addProductSeo.service';
 import { AddProductVariantService } from './addProductVariant.service';
-import { productImageColumnFields } from 'src/commonServices/image-asset.util';
 
 @Injectable()
 export class AddProductService {
@@ -35,8 +33,6 @@ export class AddProductService {
     private readonly offerRepo: Repository<Offer>,
     @InjectRepository(Tags)
     private readonly tagRepo: Repository<Tags>,
-    @InjectRepository(ProductImage)
-    private readonly productImageRepo: Repository<ProductImage>,
     @InjectRepository(ProductAttribute)
     private readonly productAttributeRepo: Repository<ProductAttribute>,
     @InjectRepository(Attribute)
@@ -49,10 +45,6 @@ export class AddProductService {
     try {
       if (!createProductDto.variants?.length) {
         throw new BadRequestException('At least one variant is required');
-      }
-
-      if (!createProductDto.images?.length) {
-        throw new BadRequestException('At least one product image is required');
       }
 
       /* ================= CATEGORY ================= */
@@ -141,19 +133,6 @@ export class AddProductService {
       });
 
       const savedProduct = await this.productRepo.save(product);
-
-      /* ================= PRODUCT IMAGES ================= */
-      if (createProductDto.images?.length) {
-        const images = createProductDto.images.map((img) =>
-          this.productImageRepo.create({
-            ...productImageColumnFields(img),
-            sortOrder: img.sortOrder ?? 0,
-            product: { id: savedProduct.id },
-          }),
-        );
-
-        await this.productImageRepo.save(images);
-      }
 
       /* ================= VARIANTS ================= */
       await this.addProductVariantService.createVariants(

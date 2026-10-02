@@ -157,6 +157,7 @@ export class UpdateCouponDto {
     type: [Number],
   })
   @IsArray()
+  @Type(() => Number)
   @IsNumber({}, { each: true })
   @IsOptional()
   userIds?: number[];

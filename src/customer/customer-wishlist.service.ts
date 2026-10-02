@@ -10,7 +10,7 @@ import {
   errorResponse,
 } from 'src/commonServices/response.service';
 import { OfferPricingService } from 'src/commonServices/offer-pricing.service';
-import { pickProductOrVariantCardImage } from 'src/commonServices/image-relation.util';
+import { pickVariantCardImage } from 'src/commonServices/image-relation.util';
 import { WishlistItem } from 'src/entities/wishlist/wishlist-item.entity';
 import { User } from 'src/entities/user/user.entity';
 import { ProductVariant } from 'src/entities/product/product-variants.entity';
@@ -39,11 +39,7 @@ export class CustomerWishlistService {
   private resolvePrimaryImage(variant: ProductVariant | null): string | null {
     if (!variant) return null;
     return (
-      pickProductOrVariantCardImage(
-        variant.product?.images,
-        variant.images,
-        400,
-      ) || null
+      pickVariantCardImage(variant.images, 400) || null
     );
   }
 
@@ -102,7 +98,6 @@ export class CustomerWishlistService {
         'variant',
         'variant.images',
         'variant.product',
-        'variant.product.images',
         'variant.product.productOffers',
         'variant.product.brand',
         'variant.product.brand.brandOffers',
@@ -175,7 +170,6 @@ export class CustomerWishlistService {
         'variant',
         'variant.images',
         'variant.product',
-        'variant.product.images',
         'variant.product.productOffers',
         'variant.product.brand',
         'variant.product.brand.brandOffers',
@@ -201,7 +195,6 @@ export class CustomerWishlistService {
         'variant',
         'variant.images',
         'variant.product',
-        'variant.product.images',
         'variant.product.productOffers',
         'variant.product.brand',
         'variant.product.brand.brandOffers',

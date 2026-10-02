@@ -19,8 +19,6 @@ import { Category } from 'src/entities/productCategory/category.entity';
 import { Brand } from 'src/entities/product/brand.entity';
 import { ProductAttribute } from 'src/entities/product/product-attribute.entity';
 import { Attribute } from 'src/entities/product/attribute.entity';
-import { ProductImage } from 'src/entities/product/product-images.entity';
-import { productImageColumnFields } from 'src/commonServices/image-asset.util';
 
 @Injectable()
 export class UpdateProductService {
@@ -39,8 +37,6 @@ export class UpdateProductService {
     private readonly productAttributeRepo: Repository<ProductAttribute>,
     @InjectRepository(Attribute)
     private readonly attributeRepo: Repository<Attribute>,
-    @InjectRepository(ProductImage)
-    private readonly productImageRepo: Repository<ProductImage>,
     private readonly productSeoService: UpdateProductSeoService,
     private readonly updateProductVariantService: UpdateProductVariantService,
   ) {}
@@ -57,7 +53,6 @@ export class UpdateProductService {
           'productTags',
           'productOffers',
           'frequentlyBoughtTogether',
-          'images',
           'productAttributes',
           'productAttributes.attribute',
         ],
@@ -72,13 +67,6 @@ export class UpdateProductService {
         updateProductDto.variants.length < 1
       ) {
         throw new BadRequestException('At least one variant is required');
-      }
-
-      if (
-        updateProductDto.images !== undefined &&
-        updateProductDto.images.length < 1
-      ) {
-        throw new BadRequestException('At least one product image is required');
       }
 
       /* ================= BASIC UPDATE ================= */
@@ -176,23 +164,6 @@ export class UpdateProductService {
 
       const savedProduct = await this.productRepo.save(product);
 
-      /* ================= PRODUCT IMAGES ================= */
-      if (updateProductDto.images !== undefined) {
-        await this.productImageRepo.delete({ product: { id: product.id } });
-
-        if (updateProductDto.images.length) {
-          const images = updateProductDto.images.map((img) =>
-            this.productImageRepo.create({
-              ...productImageColumnFields(img),
-              sortOrder: img.sortOrder ?? 0,
-              product: { id: product.id },
-            }),
-          );
-
-          await this.productImageRepo.save(images);
-        }
-      }
-
       /* ================= PRODUCT ATTRIBUTES ================= */
       if (updateProductDto.attributes !== undefined) {
         await this.productAttributeRepo.delete({ product: { id: product.id } });
@@ -254,7 +225,6 @@ export class UpdateProductService {
           'productTags',
           'productOffers',
           'frequentlyBoughtTogether',
-          'images',
           'productAttributes',
           'productAttributes.attribute',
         ],

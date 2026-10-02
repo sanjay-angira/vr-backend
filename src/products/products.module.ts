@@ -14,7 +14,6 @@ import { ProductSeo } from 'src/entities/product/product-seo.entity';
 import { ProductAttribute } from 'src/entities/product/product-attribute.entity';
 import { Attribute } from 'src/entities/product/attribute.entity';
 import { VariantAttribute } from 'src/entities/product/product-variant-attribute.entity';
-import { ProductImage } from 'src/entities/product/product-images.entity';
 import { VariantImage } from 'src/entities/product/variant-image.entity';
 import { UpdateProductService } from './updateProduct.service';
 import { AddProductService } from './addProduct.service';
@@ -37,7 +36,6 @@ import { UpdateProductSeoService } from './updatedProductSeo.service';
       Tags,
       Brand,
       Faq,
-      ProductImage,
       VariantImage,
     ]),
     CommonModule,

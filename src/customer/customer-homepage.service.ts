@@ -15,7 +15,7 @@ import {
   blogImageSource,
   categoryImageSource,
   categoryMobileImageSource,
-  pickProductOrVariantCardImage,
+  pickVariantCardImage,
 } from 'src/commonServices/image-relation.util';
 
 @Injectable()
@@ -212,7 +212,6 @@ export class CustomerHomepageService {
       .leftJoinAndSelect('product.variants', 'variants')
       .leftJoinAndSelect('variants.images', 'variantImages')
       .leftJoinAndSelect('variants.productVariantOffers', 'variantOffers')
-      .leftJoinAndSelect('product.images', 'images')
       .leftJoinAndSelect('product.category', 'category')
       .leftJoinAndSelect('product.brand', 'brand')
       .leftJoinAndSelect('brand.brandOffers', 'brandOffers')
@@ -256,9 +255,6 @@ export class CustomerHomepageService {
 
     const { variant, pricing } = bestVariantResult;
 
-    const productImages = [...(product.images || [])].sort(
-      (a, b) => a.sortOrder - b.sortOrder,
-    );
     const variantImages = [...(variant.images || [])].sort(
       (a, b) => a.sortOrder - b.sortOrder,
     );
@@ -285,7 +281,7 @@ export class CustomerHomepageService {
       discountAmount: pricing.discountAmount,
       discountPercentage: pricing.discountPercentage,
       appliedOffer: pricing.appliedOffer,
-      image: pickProductOrVariantCardImage(productImages, variantImages, 400),
+      image: pickVariantCardImage(variantImages, 400),
       category: product.category?.categoryName || '',
       rating: Math.round(averageRating * 10) / 10,
       reviewCount: approvedReviews.length,

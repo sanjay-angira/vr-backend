@@ -14,7 +14,6 @@ import { Product, PublishStatus } from 'src/entities/product/product.entity';
 import { Category } from 'src/entities/productCategory/category.entity';
 import { DataSource, In, ILike, Repository } from 'typeorm';
 import { ProductVariant } from 'src/entities/product/product-variants.entity';
-import { ProductImage } from 'src/entities/product/product-images.entity';
 import { ProductAttribute } from 'src/entities/product/product-attribute.entity';
 import { Faq } from 'src/entities/product/faq.entity';
 import { Review } from 'src/entities/product/review.entity';
@@ -32,7 +31,7 @@ import {
   categoryImageAlt,
   categoryImageSource,
   categoryMobileImageSource,
-  pickProductOrVariantCardImage,
+  pickVariantCardImage,
 } from 'src/commonServices/image-relation.util';
 import { Order } from 'src/entities/order/order.entity';
 import { OrderItem } from 'src/entities/order/order-item.entity';
@@ -277,7 +276,6 @@ export class CustomerService {
         'product.brand',
         'product.brand.brandOffers',
         'product.category',
-        'product.images',
         'images',
       ],
     });
@@ -517,7 +515,7 @@ export class CustomerService {
       rankedIds.length > 0
         ? await this.productRepository.find({
             where: { id: In(rankedIds) },
-            relations: ['category', 'images', 'variants', 'variants.images'],
+            relations: ['category', 'variants', 'variants.images'],
           })
         : [];
 
@@ -537,11 +535,7 @@ export class CustomerService {
           id: product.id,
           name: product.productName || '',
           slug,
-          image: pickProductOrVariantCardImage(
-            product.images,
-            variant?.images,
-            200,
-          ),
+          image: pickVariantCardImage(variant?.images, 200),
           href: slug
             ? `/product/${encodeURIComponent(slug)}`
             : '/products',
@@ -903,7 +897,6 @@ export class CustomerService {
         .leftJoinAndSelect('product.variants', 'variants')
         .leftJoinAndSelect('variants.images', 'variantImages')
         .leftJoinAndSelect('variants.productVariantOffers', 'variantOffers')
-        .leftJoinAndSelect('product.images', 'productImages')
         .leftJoinAndSelect('product.category', 'category')
         .leftJoinAndSelect('category.categoryOffers', 'categoryOffers')
         .leftJoinAndSelect('product.brand', 'brand')
@@ -1109,13 +1102,6 @@ export class CustomerService {
     const sortedVariantImages = [...(variant.images || [])].sort(
       (a, b) => a.sortOrder - b.sortOrder,
     );
-    const sortedProductImages = [...(product.images || [])].sort(
-      (a, b) => a.sortOrder - b.sortOrder,
-    );
-    const selectedImages =
-      sortedVariantImages.length > 0
-        ? sortedVariantImages
-        : sortedProductImages;
     const fullProductName =
       `${product.productName || ''}${variant.name ? ` ${variant.name}` : ''}`.trim();
 
@@ -1149,12 +1135,8 @@ export class CustomerService {
       sku: variant.sku || null,
       stock: Number(variant.stock),
       inStock: Number(variant.stock) > 0,
-      image: pickProductOrVariantCardImage(
-        sortedProductImages,
-        sortedVariantImages,
-        400,
-      ),
-      images: selectedImages,
+      image: pickVariantCardImage(sortedVariantImages, 400),
+      images: sortedVariantImages,
       originalPrice: pricing.originalPrice,
       finalPrice: pricing.finalPrice,
       discountAmount: pricing.discountAmount,
@@ -1216,7 +1198,7 @@ export class CustomerService {
         return errorResponse('Product not found', 404);
       }
 
-      const [variants, images, productAttributes, faqs, reviews] =
+      const [variants, productAttributes, faqs, reviews] =
         await Promise.all([
           this.variationRepository.find({
             where: { product: { id: product.id } },
@@ -1226,10 +1208,6 @@ export class CustomerService {
               variantAttributes: { attribute: true },
             },
             relationLoadStrategy: 'query',
-          }),
-          this.dataSource.getRepository(ProductImage).find({
-            where: { product: { id: product.id } },
-            order: { sortOrder: 'ASC' },
           }),
           this.dataSource.getRepository(ProductAttribute).find({
             where: { product: { id: product.id } },
@@ -1247,7 +1225,6 @@ export class CustomerService {
         ]);
 
       product.variants = variants;
-      product.images = images;
       product.productAttributes = productAttributes;
       product.faqs = faqs;
       product.reviews = reviews.map((review) => {
@@ -1432,7 +1409,6 @@ export class CustomerService {
           where: { id: In(variationIds) },
           relations: [
             'product',
-            'product.images',
             'product.productOffers',
             'product.brand',
             'product.brand.brandOffers',
@@ -1477,7 +1453,6 @@ export class CustomerService {
           productName: string;
           productSlug: string | null;
           shortDescription: string | null;
-          images: unknown[];
         } | null;
       } | null;
     }> = [];
@@ -1530,11 +1505,6 @@ export class CustomerService {
         image =
           [...variant.images].sort((a, b) => a.sortOrder - b.sortOrder)[0]
             ?.originalUrl || null;
-      } else if (variant?.product?.images?.length) {
-        image =
-          [...variant.product.images].sort(
-            (a, b) => a.sortOrder - b.sortOrder,
-          )[0]?.originalUrl || null;
       }
 
       items.push({
@@ -1562,7 +1532,6 @@ export class CustomerService {
                     productName: variant.product.productName,
                     productSlug: variant.product.productSlug,
                     shortDescription: variant.product.shortDescription,
-                    images: variant.product.images || [],
                   }
                 : null,
             }

@@ -237,6 +237,7 @@ export class UpdateBlogDto {
   @ApiPropertyOptional({ type: [Number] })
   @IsArray()
   @IsOptional()
+  @Type(() => Number)
   tagIds?: number[];
 
   @ApiPropertyOptional({ type: BlogSeoDto })

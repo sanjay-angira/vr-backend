@@ -6,7 +6,7 @@
  *   npm run migrate:variant-webp
  *
  * Env:
- *   MIGRATE_IMAGE_SCOPE=all|product|variant|cms   (default: all)
+ *   MIGRATE_IMAGE_SCOPE=all|variant|cms   (default: all)
  *   MIGRATE_IMAGE_LIMIT=50
  *   MIGRATE_IMAGE_DRY_RUN=1
  *   MIGRATE_IMAGE_FORCE=1          # regenerate even when webp* already set
@@ -16,7 +16,6 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from '../src/app.module';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { ProductImage } from '../src/entities/product/product-images.entity';
 import { VariantImage } from '../src/entities/product/variant-image.entity';
 import { Category } from '../src/entities/productCategory/category.entity';
 import { BlogPost } from '../src/entities/blog/blog-posts.entity';
@@ -40,7 +39,7 @@ function readScope(): string {
   const fromArg = process.argv.find((arg) => arg.startsWith('--scope='));
   if (fromArg) return fromArg.split('=')[1]?.toLowerCase() || 'all';
   if (process.argv.includes('--variant')) return 'variant';
-  if (process.argv.includes('--product')) return 'product';
+    if (process.argv.includes('--product')) return 'variant';
   if (process.argv.includes('--cms')) return 'cms';
   return (process.env.MIGRATE_IMAGE_SCOPE || 'all').toLowerCase();
 }
@@ -126,47 +125,6 @@ function applyMissingWebpFilter<T extends object>(
   }
   if (LIMIT) qb.take(LIMIT);
   return qb;
-}
-
-async function migrateProductImages(
-  repo: Repository<ProductImage>,
-  s3: S3Service,
-  optimizer: ImageOptimizationService,
-) {
-  const qb = applyMissingWebpFilter(
-    repo.createQueryBuilder('img'),
-    'img',
-  );
-  const rows = await qb.getMany();
-  console.log(
-    `Product images to migrate: ${rows.length}` +
-      (FORCE ? ' (force)' : '') +
-      (PNG_ONLY ? ' (png only)' : ''),
-  );
-
-  for (const row of rows) {
-    try {
-      if (PNG_ONLY && !isPngUrl(row.originalUrl)) continue;
-      if (DRY_RUN) {
-        console.log(`[dry-run] product_image#${row.id} ← ${row.originalUrl}`);
-        continue;
-      }
-      const result = await generateWebpFromOriginal(
-        s3,
-        optimizer,
-        row.originalUrl,
-        `legacy-product-img-${row.id}`,
-      );
-      Object.assign(row, productColumnsFromAsset(result));
-      await repo.save(row);
-      console.log(`✓ product_image#${row.id}`);
-    } catch (error) {
-      console.error(
-        `✗ product_image#${row.id}:`,
-        error instanceof Error ? error.message : error,
-      );
-    }
-  }
 }
 
 async function migrateVariantImages(
@@ -357,17 +315,10 @@ async function main() {
     const s3 = app.get(S3Service);
     const optimizer = app.get(ImageOptimizationService);
 
-    const runProduct = SCOPE === 'all' || SCOPE === 'product';
-    const runVariant = SCOPE === 'all' || SCOPE === 'variant';
+    const runVariant =
+      SCOPE === 'all' || SCOPE === 'variant' || SCOPE === 'product';
     const runCms = SCOPE === 'all' || SCOPE === 'cms';
 
-    if (runProduct) {
-      await migrateProductImages(
-        app.get(getRepositoryToken(ProductImage)),
-        s3,
-        optimizer,
-      );
-    }
     if (runVariant) {
       await migrateVariantImages(
         app.get(getRepositoryToken(VariantImage)),

@@ -18,7 +18,6 @@ import { Offer } from './offer.entity';
 import { Brand } from './brand.entity';
 import { Faq } from './faq.entity';
 import { ProductSeo } from './product-seo.entity';
-import { ProductImage } from './product-images.entity';
 import { CmsSection } from '../CMS/cmsSettings.entity';
 import { CategoryAttribute } from '../productCategory/category-attribute.entity';
 import { ProductAttribute } from './product-attribute.entity';
@@ -69,12 +68,6 @@ export class Product {
 
   @OneToMany(() => Tags, (tag) => tag.product, { cascade: true, eager: true })
   productTags!: Tags[];
-
-  @OneToMany(() => ProductImage, (image) => image.product, {
-    cascade: true,
-    eager: true,
-  })
-  images!: ProductImage[];
 
   @OneToOne(() => ProductSeo, (seo) => seo.product, { cascade: true })
   seo!: ProductSeo;

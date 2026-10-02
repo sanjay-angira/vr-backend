@@ -6,6 +6,7 @@ import {
   IsArray,
   IsBoolean,
 } from 'class-validator';
+import { Type } from 'class-transformer';
 import { PaginationDto } from './common.dto';
 
 export class CreateBrandDto {
@@ -103,11 +104,13 @@ export class UpdateBrandDto {
 
   @IsOptional()
   @IsArray()
+  @Type(() => Number)
   @IsNumber({}, { each: true })
   categoryIds?: number[];
 
   @IsOptional()
   @IsArray()
+  @Type(() => Number)
   @IsNumber({}, { each: true })
   offerIds?: number[];
 }

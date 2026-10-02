@@ -1,7 +1,6 @@
 import type { Category } from 'src/entities/productCategory/category.entity';
 import type { BlogPost } from 'src/entities/blog/blog-posts.entity';
 import type { Banner } from 'src/entities/CMS/banner.entity';
-import type { ProductImage } from 'src/entities/product/product-images.entity';
 import type { VariantImage } from 'src/entities/product/variant-image.entity';
 import { pickOptimizedImageUrl } from './image-url.util';
 
@@ -41,7 +40,7 @@ export function bannerImageSource(
 }
 
 export function productImageSource(
-  image: ProductImage | VariantImage | null | undefined,
+  image: VariantImage | null | undefined,
 ) {
   if (!image) return { originalUrl: '', url: '' };
   return {
@@ -54,7 +53,7 @@ export function productImageSource(
 }
 
 export function pickProductCardImage(
-  image: ProductImage | VariantImage | null | undefined,
+  image: VariantImage | null | undefined,
   preferredWidth = 400,
 ) {
   // Prefer sized WebP; fall back to original so cards never go blank when
@@ -64,23 +63,17 @@ export function pickProductCardImage(
 
 /**
  * Card image for the priced/selected variant.
- * Prefer that variant's WebP images so color/size match the card title & price,
- * then fall back to product-level gallery WebP.
  */
-export function pickProductOrVariantCardImage(
-  productImages: Array<ProductImage | VariantImage> | null | undefined,
-  variantImages: Array<ProductImage | VariantImage> | null | undefined,
+export function pickVariantCardImage(
+  variantImages: VariantImage[] | null | undefined,
   preferredWidth = 400,
 ): string {
-  const pools = [variantImages || [], productImages || []];
-
-  for (const pool of pools) {
-    const sorted = [...pool].sort((a, b) => a.sortOrder - b.sortOrder);
-    for (const image of sorted) {
-      const url = pickProductCardImage(image, preferredWidth);
-      if (url) return url;
-    }
+  const sorted = [...(variantImages || [])].sort(
+    (a, b) => a.sortOrder - b.sortOrder,
+  );
+  for (const image of sorted) {
+    const url = pickProductCardImage(image, preferredWidth);
+    if (url) return url;
   }
-
   return '';
 }

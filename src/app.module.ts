@@ -32,6 +32,7 @@ import { renameProductImageUrlColumns } from './commonServices/rename-product-im
 import { migrateCmsImagesOntoParents } from './commonServices/migrate-cms-images-onto-parents';
 import { removeHeaderCms } from './commonServices/remove-header-cms';
 import { removeUnusedFooterCms } from './commonServices/remove-unused-footer-cms';
+import { migrateProductImagesToVariants } from './commonServices/migrate-product-images-to-variants';
 
 // Main application module
 @Module({
@@ -74,6 +75,7 @@ import { removeUnusedFooterCms } from './commonServices/remove-unused-footer-cms
         await prep.initialize();
         try {
           await renameProductImageUrlColumns(prep);
+          await migrateProductImagesToVariants(prep);
           await migrateCmsImagesOntoParents(prep);
           await removeHeaderCms(prep);
           await removeUnusedFooterCms(prep);

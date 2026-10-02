@@ -194,6 +194,7 @@ export class UpdateCategoryDto {
 
   @ApiPropertyOptional()
   @IsOptional()
+  @Type(() => Number)
   @IsNumber()
   parentId?: number | null;
 
@@ -212,6 +213,7 @@ export class UpdateCategoryDto {
   @ApiPropertyOptional({ type: [Number] })
   @IsOptional()
   @IsArray()
+  @Type(() => Number)
   @IsNumber({}, { each: true })
   offerIds?: number[];
 

@@ -66,7 +66,6 @@ export class ProductsService {
         .leftJoinAndSelect('product.category', 'category')
         .leftJoinAndSelect('product.brand', 'brand')
         .leftJoinAndSelect('product.productTags', 'productTags')
-        .leftJoinAndSelect('product.images', 'images')
         .leftJoinAndSelect('product.productAttributes', 'productAttributes')
         .leftJoinAndSelect('productAttributes.attribute', 'productAttribute')
         .leftJoinAndSelect('product.seo', 'seo')

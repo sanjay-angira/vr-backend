@@ -232,12 +232,6 @@ export class CreateProductDto {
   @IsNumber({}, { each: true })
   frequentlyBoughtTogether?: number[];
 
-  @IsArray()
-  @ArrayMinSize(1, { message: 'At least one product image is required' })
-  @ValidateNested({ each: true })
-  @Type(() => ImageInputDto)
-  images!: ImageInputDto[];
-
   @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })
@@ -247,6 +241,7 @@ export class CreateProductDto {
 
 export class UpdateVariantDto {
   @IsOptional()
+  @Type(() => Number)
   @IsNumber()
   id?: number;
 
@@ -259,10 +254,12 @@ export class UpdateVariantDto {
   slug?: string;
 
   @IsOptional()
+  @Type(() => Number)
   @IsNumber()
   price?: number;
 
   @IsOptional()
+  @Type(() => Number)
   @IsNumber()
   stock?: number;
 
@@ -282,6 +279,7 @@ export class UpdateVariantDto {
 
   @IsOptional()
   @IsArray()
+  @Type(() => Number)
   @IsNumber({}, { each: true })
   productVariantOffers?: number[];
 
@@ -384,20 +382,24 @@ export class UpdateProductDto {
   publishStatus?: PublishStatus;
 
   @IsOptional()
+  @Type(() => Number)
   @IsNumber()
   brandId?: number;
 
   @IsOptional()
+  @Type(() => Number)
   @IsNumber()
   category?: number;
 
   @IsOptional()
   @IsArray()
+  @Type(() => Number)
   @IsNumber({}, { each: true })
   productOffers?: number[];
 
   @IsOptional()
   @IsArray()
+  @Type(() => Number)
   @IsNumber({}, { each: true })
   productTags?: number[];
 
@@ -414,14 +416,9 @@ export class UpdateProductDto {
 
   @IsOptional()
   @IsArray()
+  @Type(() => Number)
   @IsNumber({}, { each: true })
   frequentlyBoughtTogether?: number[];
-
-  @IsOptional()
-  @IsArray()
-  @ValidateNested({ each: true })
-  @Type(() => ImageInputDto)
-  images?: ImageInputDto[];
 
   @IsOptional()
   @IsArray()
