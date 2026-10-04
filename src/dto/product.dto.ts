@@ -14,6 +14,13 @@ import {
 } from 'class-validator';
 import { PublishStatus } from 'src/entities/product/product.entity';
 import { AtttributeViewOption } from 'src/entities/product/product-variant-attribute.entity';
+import { PaginationDto } from './common.dto';
+
+export class ProductQueryDto extends PaginationDto {
+  @IsOptional()
+  @IsString()
+  categoryId?: string;
+}
 
 export class ProductAttributeDto {
   @Type(() => Number)

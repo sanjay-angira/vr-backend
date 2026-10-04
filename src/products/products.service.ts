@@ -8,7 +8,7 @@ import {
   successResponse,
   errorResponse,
 } from 'src/commonServices/response.service';
-import { PaginationDto } from 'src/dto/common.dto';
+import { ProductQueryDto } from 'src/dto/product.dto';
 
 @Injectable()
 export class ProductsService {
@@ -20,8 +20,9 @@ export class ProductsService {
     private readonly utilityService: UtilityService,
   ) {}
 
-  async findAll(paginationDto: PaginationDto) {
-    const { pageNumber, pageSize, search, column, order } = paginationDto;
+  async findAll(paginationDto: ProductQueryDto) {
+    const { pageNumber, pageSize, search, column, order, categoryId } =
+      paginationDto;
     try {
       const isPageNumberValid =
         this.utilityService.validatePageNumber(pageNumber);
@@ -41,6 +42,10 @@ export class ProductsService {
         queryBuilder.andWhere('product.productName LIKE :search', {
           search: `%${search}%`,
         });
+      }
+
+      if (categoryId && categoryId !== 'null') {
+        queryBuilder.andWhere('category.id = :categoryId', { categoryId });
       }
 
       if (column && order) {

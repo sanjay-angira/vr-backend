@@ -17,8 +17,11 @@ import {
   ApiParam,
 } from '@nestjs/swagger';
 import { ProductsService } from './products.service';
-import { CreateProductDto, UpdateProductDto } from 'src/dto/product.dto';
-import { PaginationDto } from 'src/dto/common.dto';
+import {
+  CreateProductDto,
+  ProductQueryDto,
+  UpdateProductDto,
+} from 'src/dto/product.dto';
 import { AddProductService } from './addProduct.service';
 import { UpdateProductService } from './updateProduct.service';
 
@@ -205,7 +208,8 @@ export class ProductsController {
   @ApiQuery({ name: 'search', required: false, type: String })
   @ApiQuery({ name: 'column', required: false, type: String })
   @ApiQuery({ name: 'order', required: false, type: String })
-  async findAll(@Query() paginationDto: PaginationDto) {
+  @ApiQuery({ name: 'categoryId', required: false, type: Number })
+  async findAll(@Query() paginationDto: ProductQueryDto) {
     return await this.productsService.findAll(paginationDto);
   }
 
