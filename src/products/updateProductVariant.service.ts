@@ -48,8 +48,8 @@ export function hasVariantImageChanged(
   existing: string[] | null | undefined,
   incoming: string[] | null | undefined,
 ): boolean {
-  const normalizedExisting = (existing ?? []).map((url) => url.trim());
-  const normalizedIncoming = (incoming ?? []).map((url) => url.trim());
+  const normalizedExisting = [...new Set((existing ?? []).map((url) => url.trim()).filter(Boolean))];
+  const normalizedIncoming = [...new Set((incoming ?? []).map((url) => url.trim()).filter(Boolean))];
 
   if (normalizedExisting.length !== normalizedIncoming.length) {
     return true;
