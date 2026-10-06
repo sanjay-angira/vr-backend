@@ -17,6 +17,49 @@ import {
 import { UpdateVariantDto } from 'src/dto/product.dto';
 import { productImageColumnFields } from 'src/commonServices/image-asset.util';
 
+export function normalizeVariantImageUrls(
+  images: unknown[] | null | undefined,
+): string[] {
+  if (!images) return [];
+
+  const seen = new Set<string>();
+  return images
+    .map((image) => {
+      if (typeof image === 'string') {
+        return image.trim();
+      }
+      if (image && typeof image === 'object') {
+        const record = image as Record<string, unknown>;
+        return String(
+          record.originalUrl ?? record.url ?? record.image ?? record.Location ?? '',
+        ).trim();
+      }
+      return '';
+    })
+    .filter((value) => {
+      if (!value) return false;
+      if (seen.has(value)) return false;
+      seen.add(value);
+      return true;
+    });
+}
+
+export function hasVariantImageChanged(
+  existing: string[] | null | undefined,
+  incoming: string[] | null | undefined,
+): boolean {
+  const normalizedExisting = (existing ?? []).map((url) => url.trim());
+  const normalizedIncoming = (incoming ?? []).map((url) => url.trim());
+
+  if (normalizedExisting.length !== normalizedIncoming.length) {
+    return true;
+  }
+
+  return normalizedExisting.some(
+    (url, index) => url !== normalizedIncoming[index],
+  );
+}
+
 @Injectable()
 export class UpdateProductVariantService {
   constructor(
@@ -149,20 +192,34 @@ export class UpdateProductVariantService {
       }
 
       if (v.images !== undefined) {
-        await this.variantImageRepo.delete({
-          variant: { id: savedVariant.id },
+        const existingImages = await this.variantImageRepo.find({
+          where: { variant: { id: savedVariant.id } },
+          order: { sortOrder: 'ASC', id: 'ASC' },
         });
 
-        if (v.images.length) {
-          const images = v.images.map((img) =>
-            this.variantImageRepo.create({
-              ...productImageColumnFields(img),
-              sortOrder: img.sortOrder ?? 0,
-              variant: { id: savedVariant.id },
-            }),
-          );
+        const existingUrls = existingImages.map((image) =>
+          (image.originalUrl ?? '').trim(),
+        );
+        const incomingUrls = normalizeVariantImageUrls(v.images);
 
-          await this.variantImageRepo.save(images);
+        const imageChanged = hasVariantImageChanged(existingUrls, incomingUrls);
+
+        if (imageChanged) {
+          await this.variantImageRepo.delete({
+            variant: { id: savedVariant.id },
+          });
+
+          if (v.images.length) {
+            const images = v.images.map((img) =>
+              this.variantImageRepo.create({
+                ...productImageColumnFields(img),
+                sortOrder: img.sortOrder ?? 0,
+                variant: { id: savedVariant.id },
+              }),
+            );
+
+            await this.variantImageRepo.save(images);
+          }
         }
       }
 

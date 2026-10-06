@@ -20,6 +20,18 @@ import { Attribute } from 'src/entities/product/attribute.entity';
 import { AddProductSeoService } from './addProductSeo.service';
 import { AddProductVariantService } from './addProductVariant.service';
 
+function isProductSlugConflict(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false;
+
+  const driverError = (error as { driverError?: Record<string, unknown> })
+    .driverError;
+  return (
+    driverError?.code === '23505' &&
+    (String(driverError.detail ?? '').includes('productSlug') ||
+      String(driverError.constraint ?? '').includes('productSlug'))
+  );
+}
+
 @Injectable()
 export class AddProductService {
   constructor(
@@ -121,7 +133,7 @@ export class AddProductService {
       /* ================= CREATE PRODUCT ================= */
       const product = this.productRepo.create({
         productName: createProductDto.productName,
-        productSlug: createProductDto.productSlug,
+        productSlug: createProductDto.productSlug.trim(),
         shortDescription: createProductDto.shortDescription ?? null,
         description: createProductDto.description ?? null,
         isActive: createProductDto.isActive ?? true,
@@ -132,7 +144,30 @@ export class AddProductService {
         frequentlyBoughtTogether: frequentlyBoughtProducts,
       });
 
-      const savedProduct = await this.productRepo.save(product);
+      const baseSlug = product.productSlug;
+      let suffix = 1;
+      let savedProduct: Product;
+
+      while (true) {
+        const candidateSlug = suffix === 1 ? baseSlug : `${baseSlug}-${suffix}`;
+        const slugExists = await this.productRepo.exist({
+          where: { productSlug: candidateSlug },
+        });
+
+        if (slugExists) {
+          suffix += 1;
+          continue;
+        }
+
+        product.productSlug = candidateSlug;
+        try {
+          savedProduct = await this.productRepo.save(product);
+          break;
+        } catch (error) {
+          if (!isProductSlugConflict(error)) throw error;
+          suffix += 1;
+        }
+      }
 
       /* ================= VARIANTS ================= */
       await this.addProductVariantService.createVariants(
