@@ -278,7 +278,6 @@ export class CustomerRecentlyViewedService {
         publishStatus: PublishStatus.PUBLISHED,
       },
       relations: [
-        'images',
         'variants',
         'variants.images',
         'variants.productVariantOffers',
