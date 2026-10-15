@@ -67,6 +67,18 @@ export class ImageInputDto {
   @IsOptional()
   @IsInt()
   sortOrder?: number;
+
+  @IsOptional()
+  @IsString()
+  webp400?: string | null;
+
+  @IsOptional()
+  @IsString()
+  webp800?: string | null;
+
+  @IsOptional()
+  @IsString()
+  webp1200?: string | null;
 }
 
 export class CreateVariantDto {

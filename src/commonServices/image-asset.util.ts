@@ -46,8 +46,8 @@ export function productImageColumnFields(img: {
   const derived = deriveOptimizedColumnsFromOriginalUrl(originalUrl);
   return {
     originalUrl,
-    webp400: img.webp400 ?? derived.webp400 ?? null,
-    webp800: img.webp800 ?? derived.webp800 ?? null,
-    webp1200: img.webp1200 ?? derived.webp1200 ?? null,
+    webp400: img.webp400 !== undefined ? img.webp400 : derived.webp400,
+    webp800: img.webp800 !== undefined ? img.webp800 : derived.webp800,
+    webp1200: img.webp1200 !== undefined ? img.webp1200 : derived.webp1200,
   };
 }

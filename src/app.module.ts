@@ -48,7 +48,7 @@ import { migrateProductImagesToVariants } from './commonServices/migrate-product
         password: configService.get<string>('DB_PASSWORD'),
         database: configService.get<string>('DB_DATABASE'),
         entities: [__dirname + '/**/*.entity{.ts,.js,.tsx,.jsx}'],
-        synchronize: true,
+        synchronize: false,
         autoLoadEntities: true,
         logging: true,
 
