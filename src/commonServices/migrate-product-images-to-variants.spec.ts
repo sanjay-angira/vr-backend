@@ -2,41 +2,57 @@ import { DataSource } from 'typeorm';
 import { migrateProductImagesToVariants } from './migrate-product-images-to-variants';
 
 describe('migrateProductImagesToVariants', () => {
-  function createDataSource(unmatchedCount = 0) {
-    const query = jest.fn(async (sql: string, parameters?: string[]) => {
+  function createDataSource() {
+    const query = jest.fn((sql: string) => {
       if (sql.includes('information_schema.tables')) {
         return [{ exists: true }];
       }
-      if (sql.includes('FROM product_images') && sql.includes('NOT EXISTS')) {
-        return [{ count: String(unmatchedCount) }];
-      }
-      if (sql.includes('FROM product_images')) {
+      if (sql.includes('SELECT COUNT(*)::text AS count FROM product_images')) {
         return [{ count: '2' }];
       }
       return [];
     });
 
-    return { dataSource: { query } as unknown as DataSource, query };
+    const transaction = jest.fn(
+      async (work: (manager: { query: typeof query }) => Promise<void>) =>
+        work({ query }),
+    );
+
+    return {
+      dataSource: { query, transaction } as unknown as DataSource,
+      query,
+      transaction,
+    };
   }
 
-  it('copies legacy images onto every variant without duplicating existing rows', async () => {
-    const { dataSource, query } = createDataSource();
+  it('removes legacy variant copies and source rows transactionally', async () => {
+    const { dataSource, query, transaction } = createDataSource();
 
     await migrateProductImagesToVariants(dataSource);
 
-    const insert = query.mock.calls.at(-1)?.[0] as string;
-    expect(insert).toContain('JOIN product_variants variant');
-    expect(insert).toContain('variant."productId" = product_image."productId"');
-    expect(insert).toContain('WHERE NOT EXISTS');
-    expect(insert).toContain('existing_image."variantId" = variant.id');
-  });
-
-  it('refuses to continue when legacy images have no variant to receive them', async () => {
-    const { dataSource, query } = createDataSource(1);
-
-    await expect(migrateProductImagesToVariants(dataSource)).rejects.toThrow(
-      'at least one product image has no product variant',
+    const variantDeleteIndex = query.mock.calls.findIndex(([sql]) =>
+      String(sql).includes('DELETE FROM variant_images'),
     );
-    expect(query.mock.calls.some(([sql]) => String(sql).includes('INSERT INTO variant_images'))).toBe(false);
+    const legacyDeleteIndex = query.mock.calls.findIndex(([sql]) =>
+      String(sql).includes('DELETE FROM product_images'),
+    );
+    const variantDelete = query.mock.calls[variantDeleteIndex]?.[0];
+    expect(variantDelete).toContain(
+      'USING product_variants variant, product_images product_image',
+    );
+    expect(variantDelete).toContain(
+      'variant."productId" = product_image."productId"',
+    );
+    expect(variantDelete).toContain(
+      'variant_image."originalUrl" = product_image."originalUrl"',
+    );
+    expect(transaction).toHaveBeenCalledTimes(1);
+    expect(variantDeleteIndex).toBeGreaterThanOrEqual(0);
+    expect(
+      query.mock.calls.some(([sql]) =>
+        String(sql).includes('INSERT INTO variant_images'),
+      ),
+    ).toBe(false);
+    expect(legacyDeleteIndex).toBeGreaterThan(variantDeleteIndex);
   });
 });
