@@ -33,6 +33,7 @@ import { migrateCmsImagesOntoParents } from './commonServices/migrate-cms-images
 import { removeHeaderCms } from './commonServices/remove-header-cms';
 import { removeUnusedFooterCms } from './commonServices/remove-unused-footer-cms';
 import { migrateProductImagesToVariants } from './commonServices/migrate-product-images-to-variants';
+import { migrateCategorySeoFields } from './commonServices/migrate-category-seo-fields';
 
 // Main application module
 @Module({
@@ -79,6 +80,7 @@ import { migrateProductImagesToVariants } from './commonServices/migrate-product
           await migrateCmsImagesOntoParents(prep);
           await removeHeaderCms(prep);
           await removeUnusedFooterCms(prep);
+          await migrateCategorySeoFields(prep);
         } finally {
           await prep.destroy();
         }

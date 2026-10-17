@@ -40,6 +40,22 @@ export class CategorySeoDto {
   @IsString()
   focusKeyword?: string;
 
+  @ApiPropertyOptional({ example: ['organic spices', 'Indian spices'] })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  secondaryKeywords?: string[];
+
+  @ApiPropertyOptional({ example: true, default: true })
+  @IsOptional()
+  @IsBoolean()
+  robotsIndex?: boolean;
+
+  @ApiPropertyOptional({ example: true, default: true })
+  @IsOptional()
+  @IsBoolean()
+  robotsFollow?: boolean;
+
   @ApiPropertyOptional({ example: 'index, follow' })
   @IsOptional()
   @IsString()
@@ -148,6 +164,14 @@ export class CreateCategoryDto {
   @IsString()
   mobileImage?: string;
 
+  @ApiPropertyOptional({
+    example: 'https://example.com/images/spices-banner.webp',
+    description: 'Wide banner image displayed on the category shop page',
+  })
+  @IsOptional()
+  @IsString()
+  bannerImage?: string;
+
   @ApiPropertyOptional({ description: 'Image alt text on category' })
   @IsOptional()
   @IsString()
@@ -228,6 +252,13 @@ export class UpdateCategoryDto {
   @IsOptional()
   @IsString()
   mobileImage?: string | null;
+
+  @ApiPropertyOptional({
+    description: 'Wide banner image displayed on the category shop page',
+  })
+  @IsOptional()
+  @IsString()
+  bannerImage?: string | null;
 
   @ApiPropertyOptional({ description: 'Image alt text on category' })
   @IsOptional()

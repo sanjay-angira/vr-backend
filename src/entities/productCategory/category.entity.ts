@@ -50,6 +50,10 @@ export class Category {
   @Column({ type: 'varchar', length: 2048, nullable: true })
   mobileImage!: string | null;
 
+  /** Wide image displayed at the top of the category shop page. */
+  @Column({ type: 'varchar', length: 2048, nullable: true })
+  bannerImage!: string | null;
+
   @Column({ type: 'boolean', default: true })
   isActive!: boolean;
 

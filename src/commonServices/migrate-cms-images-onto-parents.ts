@@ -58,6 +58,7 @@ export async function migrateCmsImagesOntoParents(
   await ensureVarcharColumn(dataSource, 'categories', 'image');
   await ensureVarcharColumn(dataSource, 'categories', 'imageAltText', 512);
   await ensureVarcharColumn(dataSource, 'categories', 'mobileImage');
+  await ensureVarcharColumn(dataSource, 'categories', 'bannerImage');
 
   if (await tableExists(dataSource, 'category_images')) {
     await dataSource.query(`

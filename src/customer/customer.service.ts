@@ -412,12 +412,14 @@ export class CustomerService {
           id: category.id,
           name: category.categoryName,
           slug: category.categorySlug,
-          description: category.shortDescription || category.description || '',
+          description: category.description || '',
+          shortDescription: category.shortDescription || '',
           image: pickOptimizedImageUrl(categoryImageSource(category), 400),
           mobileImage: pickOptimizedImageUrl(
             categoryMobileImageSource(category),
             400,
           ),
+          bannerImage: category.bannerImage || null,
           imageAlt: categoryImageAlt(category, category.categoryName),
           productCount,
           parentId: category.parent?.id ?? null,
@@ -655,6 +657,7 @@ export class CustomerService {
           mobileImage:
             pickOptimizedImageUrl(categoryMobileImageSource(category), 400) ||
             null,
+          bannerImage: category.bannerImage || null,
           parentId: category.parent?.id ?? null,
         })),
         priceRange: { min: minPrice, max: maxPrice },
