@@ -11,7 +11,6 @@ import { Banner } from 'src/entities/CMS/banner.entity';
 import { Review } from 'src/entities/product/review.entity';
 import { pickOptimizedImageUrl } from 'src/commonServices/image-url.util';
 import {
-  bannerImageSource,
   blogImageSource,
   categoryImageSource,
   categoryMobileImageSource,
@@ -49,6 +48,28 @@ export class CustomerHomepageService {
     return successResponse(
       { sections: mappedSections },
       'Homepage sections retrieved successfully',
+    );
+  }
+
+  async getHomepageBanners() {
+    const banners = await this.bannerRepository.find({
+      where: { status: true },
+      order: { position: 'ASC', id: 'ASC' },
+    });
+
+    return successResponse(
+      banners.map((banner) => ({
+        id: banner.id,
+        title: banner.title,
+        subtitle: banner.subtitle || '',
+        image: pickOptimizedImageUrl(banner.image, 1920),
+        mobileImage: pickOptimizedImageUrl(
+          banner.mobileImage || banner.image,
+          1200,
+        ),
+        link: banner.bannerLink || '/shop',
+      })),
+      'Homepage banners retrieved successfully',
     );
   }
 
@@ -150,11 +171,10 @@ export class CustomerHomepageService {
     const rawData =
       section.data && typeof section.data === 'object' ? section.data : {};
 
-    const [products, categories, blogs, banners, reviews] = await Promise.all([
+    const [products, categories, blogs, reviews] = await Promise.all([
       this.loadProducts(section.id, limit),
       this.loadCategories(section.id, limit),
       this.loadBlogs(section.id, limit),
-      this.loadBanners(section.id, limit),
       this.loadReviews(section.id, limit),
     ]);
 
@@ -178,7 +198,7 @@ export class CustomerHomepageService {
       products,
       categories,
       blogs,
-      banners,
+      banners: [],
       reviews,
     };
   }
@@ -349,33 +369,6 @@ export class CustomerHomepageService {
         href: blog.slug ? `/blog/${blog.slug}` : '#',
       };
     });
-  }
-
-  private async loadBanners(sectionId: number, limit: number) {
-    const banners = await this.bannerRepository.find({
-      where: {
-        section: { id: sectionId },
-        status: true,
-      },
-      relations: [],
-      order: { position: 'ASC', id: 'ASC' },
-      take: limit,
-    });
-
-    return banners.map((banner) => ({
-      id: banner.id,
-      title: banner.title,
-      subtitle: banner.subtitle || '',
-      image: pickOptimizedImageUrl(
-        bannerImageSource(banner, 'desktop'),
-        1920,
-      ),
-      mobileImage: pickOptimizedImageUrl(
-        bannerImageSource(banner, 'mobile'),
-        1200,
-      ),
-      link: banner.bannerLink || '/shop',
-    }));
   }
 
   private async loadReviews(sectionId: number, limit: number) {

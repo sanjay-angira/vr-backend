@@ -56,6 +56,12 @@ export class CustomerController {
     return this.customerHomepageService.getHomepage();
   }
 
+  @Get('banners')
+  @ApiOperation({ summary: 'Get active banners for the storefront homepage' })
+  async getHomepageBanners() {
+    return this.customerHomepageService.getHomepageBanners();
+  }
+
   @Get('sitemap')
   @ApiOperation({
     summary:
