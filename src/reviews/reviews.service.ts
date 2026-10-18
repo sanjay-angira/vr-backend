@@ -1,10 +1,10 @@
-import { HttpStatus, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, HttpStatus, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Like, ILike } from 'typeorm';
+import { Repository, Like, ILike, In } from 'typeorm';
 import { Review } from '../entities/product/review.entity';
 import { Product } from '../entities/product/product.entity';
 import { User } from '../entities/user/user.entity';
-import { CreateReviewDto } from '../dto/review.dto';
+import { BulkImportReviewsDto, CreateReviewDto } from '../dto/review.dto';
 import { UpdateReviewDto } from '../dto/review.dto';
 import { PaginationDto } from '../dto/common.dto';
 import {
@@ -276,5 +276,72 @@ export class ReviewsService {
     } catch (error) {
       throw error;
     }
+  }
+
+
+
+
+
+
+  async bulkImport(dto: BulkImportReviewsDto) {
+    if (!dto.products?.length) {
+      throw new BadRequestException('No products supplied.');
+    }
+
+    const productIds = [
+      ...new Set(dto.products.map((item) => item.productId)),
+    ];
+
+    const products = await this.productRepository.find({
+      where: { id: In(productIds) },
+    });
+
+    const productMap = new Map(
+      products.map((product) => [product.id, product]),
+    );
+
+    const missingIds = productIds.filter(
+      (id) => !productMap.has(id),
+    );
+
+    if (missingIds.length) {
+      throw new NotFoundException(
+        `Products not found: ${missingIds.join(', ')}`,
+      );
+    }
+
+    const reviewItems = dto.products.flatMap((productGroup) =>
+      productGroup.reviews.map((review) => ({
+        productId: productGroup.productId,
+        ...review,
+      })),
+    );
+
+    if (reviewItems.length === 0) {
+      throw new BadRequestException('No reviews supplied.');
+    }
+
+    const entities = reviewItems.map((item) =>
+      this.reviewRepository.create({
+        rating: item.rating,
+        comment: item.comment,
+        userName: item.name,
+        isManual: true,
+        isApproved: false,
+        user: null,
+        section: null,
+        product: productMap.get(item.productId)!,
+      }),
+    );
+
+    const inserted = await this.reviewRepository.save(entities);
+
+    return {
+      message: 'Bulk review import completed.',
+      productCount: productIds.length,
+      reviewCount: reviewItems.length,
+      inserted: inserted.length,
+      isApproved: false,
+    };
   }
 }

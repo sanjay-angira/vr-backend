@@ -1,3 +1,4 @@
+import { Type } from 'class-transformer';
 import {
   IsInt,
   IsString,
@@ -6,6 +7,8 @@ import {
   IsBoolean,
   Min,
   Max,
+  IsArray,
+  ValidateNested,
 } from 'class-validator';
 
 export class CreateReviewDto {
@@ -70,4 +73,69 @@ export class UpdateReviewDto {
   @IsInt()
   @IsOptional()
   productId: number;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+export class BulkReviewItemDto {
+  @IsString()
+  @IsNotEmpty()
+  name!: string;
+
+  @IsInt()
+  @Min(1)
+  @Max(5)
+  rating!: number;
+
+  @IsString()
+  @IsNotEmpty()
+  comment!: string;
+}
+
+export class ProductReviewsDto {
+  @IsInt()
+  @Min(1)
+  productId!: number;
+
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => BulkReviewItemDto)
+  reviews!: BulkReviewItemDto[];
+}
+
+export class BulkImportReviewsDto {
+  @IsOptional()
+  @IsString()
+  source?: string;
+
+  @IsBoolean()
+  fictional!: boolean;
+
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => ProductReviewsDto)
+  products!: ProductReviewsDto[];
 }

@@ -20,13 +20,13 @@ import {
   ApiBadRequestResponse,
 } from '@nestjs/swagger';
 import { ReviewsService } from './reviews.service';
-import { CreateReviewDto, UpdateReviewDto } from '../dto/review.dto';
+import { BulkImportReviewsDto, CreateReviewDto, UpdateReviewDto,  } from '../dto/review.dto';
 import { PaginationDto } from '../dto/common.dto';
 
 @ApiTags('Reviews')
 @Controller('reviews')
 export class ReviewsController {
-  constructor(private readonly reviewsService: ReviewsService) {}
+  constructor(private readonly reviewsService: ReviewsService) { }
 
   @Post()
   @ApiOperation({ summary: 'Create a new review' })
@@ -138,5 +138,12 @@ export class ReviewsController {
   @ApiParam({ name: 'productId', required: true, type: Number })
   async getAverageRating(@Param('productId', ParseIntPipe) productId: number) {
     return await this.reviewsService.getAverageRatingByProduct(productId);
+  }
+
+
+
+  @Post('bulk-import')
+  async bulkImport(@Body() dto: BulkImportReviewsDto) {
+    return this.reviewsService.bulkImport(dto);
   }
 }
