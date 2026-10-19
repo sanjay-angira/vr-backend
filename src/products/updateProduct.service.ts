@@ -43,19 +43,21 @@ export class UpdateProductService {
 
   async update(id: number, updateProductDto: UpdateProductDto) {
     try {
+      const relationsToLoad: string[] = [];
+      if (updateProductDto.productOffers !== undefined) {
+        relationsToLoad.push('productOffers');
+      }
+      if (updateProductDto.productTags !== undefined) {
+        relationsToLoad.push('productTags');
+      }
+      if (updateProductDto.frequentlyBoughtTogether !== undefined) {
+        relationsToLoad.push('frequentlyBoughtTogether');
+      }
+
       const product = await this.productRepo.findOne({
         where: { id },
-        relations: [
-          'variants',
-          'variants.images',
-          'variants.productVariantOffers',
-          'seo',
-          'productTags',
-          'productOffers',
-          'frequentlyBoughtTogether',
-          'productAttributes',
-          'productAttributes.attribute',
-        ],
+        relations: relationsToLoad,
+        loadEagerRelations: false,
       });
 
       if (!product) {
@@ -84,6 +86,7 @@ export class UpdateProductService {
       if (updateProductDto.category) {
         const category = await this.categoryRepo.findOne({
           where: { id: updateProductDto.category },
+          loadEagerRelations: false,
         });
         if (!category) throw new NotFoundException('Category not found');
         product.category = category;
@@ -94,6 +97,7 @@ export class UpdateProductService {
       if (updateProductDto.brandId) {
         const brand = await this.brandRepo.findOne({
           where: { id: updateProductDto.brandId },
+          loadEagerRelations: false,
         });
 
         if (!brand) throw new NotFoundException('Brand not found');
@@ -216,6 +220,8 @@ export class UpdateProductService {
       const updatedProduct = await this.productRepo.findOne({
         where: { id: product.id },
         relations: [
+          'category',
+          'brand',
           'variants',
           'variants.images',
           'variants.variantAttributes',
@@ -227,7 +233,10 @@ export class UpdateProductService {
           'frequentlyBoughtTogether',
           'productAttributes',
           'productAttributes.attribute',
+          'reviews',
         ],
+        loadEagerRelations: false,
+        relationLoadStrategy: 'query',
       });
 
       return successResponse(
