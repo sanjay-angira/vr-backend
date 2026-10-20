@@ -10,9 +10,20 @@ const DEPRECATED_BANNER_COLUMNS = [
   'buttonText',
   'textColor',
   'backgroundColor',
+  'buttontext',
+  'textcolor',
+  'backgroundcolor',
   'button_text',
   'text_color',
   'background_color',
+];
+
+const LEGACY_BANNER_LINK_COLUMNS = [
+  'buttonLink',
+  'button_link',
+  'buttonlink',
+  'banner_link',
+  'bannerlink',
 ];
 
 @Injectable()
@@ -23,41 +34,61 @@ export class BannerService implements OnModuleInit {
   ) {}
 
   async onModuleInit() {
-    await this.dropDeprecatedBannerColumns();
     await this.renameButtonLinkColumn();
+    await this.dropDeprecatedBannerColumns();
   }
 
   private async renameButtonLinkColumn() {
-    const renames: Array<[string, string]> = [
-      ['"buttonLink"', '"bannerLink"'],
-      ['button_link', 'banner_link'],
-    ];
+    const rows: Array<{ column_name: string }> = await this.bannerRepo.query(
+      `SELECT column_name
+       FROM information_schema.columns
+       WHERE table_schema = 'public' AND table_name = 'banners'`,
+    );
+    const columns = new Set(rows.map(({ column_name }) => column_name));
 
-    for (const [from, to] of renames) {
-      try {
+    if (!columns.size) return;
+
+    const target = 'bannerLink';
+    for (const legacyColumn of LEGACY_BANNER_LINK_COLUMNS) {
+      if (!columns.has(legacyColumn)) continue;
+
+      if (!columns.has(target)) {
         await this.bannerRepo.query(
-          `ALTER TABLE banners RENAME COLUMN ${from} TO ${to}`,
+          `ALTER TABLE "banners" RENAME COLUMN "${legacyColumn}" TO "${target}"`,
         );
-      } catch {
-        // Column may already be renamed or not exist.
+        columns.delete(legacyColumn);
+        columns.add(target);
+        continue;
       }
+
+      await this.bannerRepo.query(
+        `UPDATE "banners"
+         SET "${target}" = COALESCE(NULLIF("${target}"::text, ''), "${legacyColumn}"::text)
+         WHERE "${legacyColumn}" IS NOT NULL
+           AND ("${target}" IS NULL OR "${target}"::text = '')`,
+      );
+      await this.bannerRepo.query(
+        `ALTER TABLE "banners" DROP COLUMN "${legacyColumn}"`,
+      );
+      columns.delete(legacyColumn);
     }
   }
 
   private async dropDeprecatedBannerColumns() {
     for (const column of DEPRECATED_BANNER_COLUMNS) {
-      try {
+      const rows: unknown[] = await this.bannerRepo.query(
+        `SELECT 1
+         FROM information_schema.columns
+         WHERE table_schema = 'public'
+           AND table_name = 'banners'
+           AND column_name = $1`,
+        [column],
+      );
+
+      if (rows.length) {
         await this.bannerRepo.query(
-          `ALTER TABLE banners DROP COLUMN IF EXISTS "${column}"`,
+          `ALTER TABLE "banners" DROP COLUMN "${column}"`,
         );
-      } catch {
-        try {
-          await this.bannerRepo.query(
-            `ALTER TABLE banners DROP COLUMN IF EXISTS ${column}`,
-          );
-        } catch {
-          // ignore
-        }
       }
     }
   }
@@ -65,24 +96,26 @@ export class BannerService implements OnModuleInit {
   private sanitizeBannerDto<T extends CreateBannerDto | UpdateBannerDto>(
     dto: T,
   ): T {
-    const {
-      buttonText: _buttonText,
-      textColor: _textColor,
-      backgroundColor: _backgroundColor,
-      buttonLink,
-      ...rest
-    } = dto as T & {
+    const legacyDto = dto as T & {
       buttonText?: string;
       textColor?: string;
       backgroundColor?: string;
       buttonLink?: string;
     };
+    const sanitized = { ...dto } as T & Record<string, unknown>;
+    delete sanitized.buttonText;
+    delete sanitized.textColor;
+    delete sanitized.backgroundColor;
+    delete sanitized.buttonLink;
 
-    if (buttonLink !== undefined && rest.bannerLink === undefined) {
-      return { ...rest, bannerLink: buttonLink } as T;
+    if (
+      legacyDto.buttonLink !== undefined &&
+      sanitized.bannerLink === undefined
+    ) {
+      return { ...sanitized, bannerLink: legacyDto.buttonLink } as T;
     }
 
-    return rest as T;
+    return sanitized as T;
   }
 
   async create(createBannerDto: CreateBannerDto) {
@@ -95,10 +128,7 @@ export class BannerService implements OnModuleInit {
 
   async findAll() {
     const [rows, count] = await this.bannerRepo.findAndCount();
-    return successResponse(
-      { rows, count },
-      'Banners retrieved successfully',
-    );
+    return successResponse({ rows, count }, 'Banners retrieved successfully');
   }
 
   async findOne(id: number) {
