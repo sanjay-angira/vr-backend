@@ -106,8 +106,7 @@ export class CustomerController {
 
   @Get('search')
   @ApiOperation({
-    summary:
-      'Header autocomplete: matching published products and categories',
+    summary: 'Header autocomplete: matching published products and categories',
   })
   @ApiQuery({
     name: 'q',
@@ -121,10 +120,7 @@ export class CustomerController {
     type: Number,
     description: 'Max products and categories to return (default 8, max 20)',
   })
-  async searchStore(
-    @Query('q') q?: string,
-    @Query('limit') limit?: string,
-  ) {
+  async searchStore(@Query('q') q?: string, @Query('limit') limit?: string) {
     return this.customerService.searchStore(q, limit);
   }
 
@@ -168,7 +164,8 @@ export class CustomerController {
     name: 'minDiscount',
     required: false,
     type: Number,
-    description: 'Minimum applied offer discount percentage (10, 20, 30, 40, 50)',
+    description:
+      'Minimum applied offer discount percentage (10, 20, 30, 40, 50)',
   })
   @ApiQuery({
     name: 'offerIds',
@@ -320,10 +317,7 @@ export class CustomerController {
   @ApiOperation({ summary: 'Update a saved delivery address' })
   @ApiParam({ name: 'id', required: true, type: Number })
   @ApiBody({ type: UpdateUserAddressDto })
-  updateAddress(
-    @Param('id') id: string,
-    @Body() dto: UpdateUserAddressDto,
-  ) {
+  updateAddress(@Param('id') id: string, @Body() dto: UpdateUserAddressDto) {
     return this.customerAddressService.updateAddress(parseInt(id, 10), dto);
   }
 
@@ -331,10 +325,7 @@ export class CustomerController {
   @ApiOperation({ summary: 'Delete a saved delivery address' })
   @ApiParam({ name: 'id', required: true, type: Number })
   @ApiQuery({ name: 'userId', required: true, type: String })
-  deleteAddress(
-    @Param('id') id: string,
-    @Query('userId') userId?: string,
-  ) {
+  deleteAddress(@Param('id') id: string, @Query('userId') userId?: string) {
     const parsedUserId = userId ? parseInt(userId, 10) : NaN;
     return this.customerAddressService.deleteAddress(
       parseInt(id, 10),
@@ -346,10 +337,7 @@ export class CustomerController {
   @ApiOperation({ summary: 'Set a saved address as default' })
   @ApiParam({ name: 'id', required: true, type: Number })
   @ApiQuery({ name: 'userId', required: true, type: String })
-  setDefaultAddress(
-    @Param('id') id: string,
-    @Query('userId') userId?: string,
-  ) {
+  setDefaultAddress(@Param('id') id: string, @Query('userId') userId?: string) {
     const parsedUserId = userId ? parseInt(userId, 10) : NaN;
     return this.customerAddressService.setDefaultAddress(
       parseInt(id, 10),
@@ -429,7 +417,8 @@ export class CustomerController {
 
   @Post('recently-viewed')
   @ApiOperation({
-    summary: 'Record recently viewed product(s) for guest or logged-in customer',
+    summary:
+      'Record recently viewed product(s) for guest or logged-in customer',
   })
   @ApiBody({ type: AddRecentlyViewedDto })
   addRecentlyViewed(@Body() dto: AddRecentlyViewedDto) {
@@ -529,7 +518,10 @@ export class CustomerController {
         productId: { type: 'number', example: 1 },
         userId: { type: 'number', example: 1 },
         rating: { type: 'number', example: 5 },
-        comment: { type: 'string', example: 'Great quality and fast delivery.' },
+        comment: {
+          type: 'string',
+          example: 'Great quality and fast delivery.',
+        },
       },
     },
   })

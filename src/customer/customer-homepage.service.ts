@@ -1,9 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Repository } from 'typeorm';
+import { In, Not, Repository } from 'typeorm';
 import { successResponse } from 'src/commonServices/response.service';
 import { OfferPricingService } from 'src/commonServices/offer-pricing.service';
-import { CmsSection } from 'src/entities/CMS/cmsSettings.entity';
+import {
+  CmsSection,
+  CmsSectionType,
+} from 'src/entities/CMS/cmsSettings.entity';
 import { Product, PublishStatus } from 'src/entities/product/product.entity';
 import { Category } from 'src/entities/productCategory/category.entity';
 import { BlogPost } from 'src/entities/blog/blog-posts.entity';
@@ -37,7 +40,10 @@ export class CustomerHomepageService {
 
   async getHomepage() {
     const sections = await this.cmsSectionRepository.find({
-      where: { status: true },
+      where: {
+        status: true,
+        type: Not(CmsSectionType.FOOTER_SECTION),
+      },
       order: { position: 'ASC' },
       select: {
         id: true,
@@ -66,7 +72,7 @@ export class CustomerHomepageService {
       where: { status: true },
       order: { position: 'ASC', id: 'ASC' },
     });
-    return successResponse(banners,'Homepage banners retrieved successfully');
+    return successResponse(banners, 'Homepage banners retrieved successfully');
   }
 
   /**

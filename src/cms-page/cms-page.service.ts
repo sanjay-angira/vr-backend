@@ -36,6 +36,7 @@ export class CmsPageService {
       title: dto.title,
       slug: dto.slug,
       content: dto.content,
+      type: dto.type ?? null,
       isActive: dto.isActive ?? true,
     });
 
@@ -113,6 +114,10 @@ export class CmsPageService {
 
     if (dto.content !== undefined) {
       page.content = dto.content;
+    }
+
+    if (dto.type !== undefined) {
+      page.type = dto.type;
     }
 
     if (dto.isActive !== undefined) {

@@ -24,7 +24,6 @@ import { ContactUsLeadsModule } from './contact-us-leads/contact-us-leads.module
 import { ScheduleModule } from '@nestjs/schedule';
 import { BannerModule } from './banner/banner.module';
 import { CmsSectionModule } from './cms-section/cms-section.module';
-import { FooterModule } from './footer/footer.module';
 import { UploadModule } from './upload/upload.module';
 import { CmsPageModule } from './cms-page/cms-page.module';
 import { DashboardModule } from './dashboard/dashboard.module';
@@ -113,7 +112,6 @@ import { migrateCategorySeoFields } from './commonServices/migrate-category-seo-
     ContactUsLeadsModule,
     BannerModule,
     CmsSectionModule,
-    FooterModule,
     UploadModule,
     CmsPageModule,
     DashboardModule,

@@ -4,9 +4,9 @@ import { Injectable, NotFoundException, OnModuleInit } from '@nestjs/common';
 
 import { InjectRepository } from '@nestjs/typeorm';
 
-import { In, Repository } from 'typeorm';
+import { In, Not, Repository } from 'typeorm';
 
-import { CmsSection } from '../entities/CMS/cmsSettings.entity';
+import { CmsSection, CmsSectionType } from '../entities/CMS/cmsSettings.entity';
 
 import {
   CreateCmsSectionDto,
@@ -205,8 +205,7 @@ export class CmsSectionService implements OnModuleInit {
     ];
 
     const relation = repo.metadata.findRelationWithPropertyPath('section');
-    const fkColumn =
-      relation?.joinColumns?.[0]?.databaseName || 'sectionId';
+    const fkColumn = relation?.joinColumns?.[0]?.databaseName || 'sectionId';
     const table = repo.metadata.tableName;
 
     await repo.manager.query(
@@ -245,11 +244,7 @@ export class CmsSectionService implements OnModuleInit {
       this.syncOwnedSectionRelation(this.offerRepo, sectionId, dto.offerIds),
       this.syncOwnedSectionRelation(this.faqRepo, sectionId, dto.faqIds),
       this.syncOwnedSectionRelation(this.bannerRepo, sectionId, dto.bannerIds),
-      this.syncOwnedSectionRelation(
-        this.reviewRepo,
-        sectionId,
-        dto.reviewIds,
-      ),
+      this.syncOwnedSectionRelation(this.reviewRepo, sectionId, dto.reviewIds),
     ]);
   }
 
@@ -306,8 +301,10 @@ export class CmsSectionService implements OnModuleInit {
   async findAll() {
     try {
       const cmsSections = await this.cmsRepo.find({
+        where: { type: Not(CmsSectionType.FOOTER_SECTION) },
         order: {
           position: 'ASC',
+          id: 'ASC',
         },
       });
 

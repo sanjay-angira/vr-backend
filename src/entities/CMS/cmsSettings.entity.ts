@@ -26,6 +26,7 @@ export enum CmsSectionType {
   OFFER_SECTION = 'offer_section',
   FAQ_SECTION = 'faq_section',
   REVIEW_SECTION = 'review_section',
+  FOOTER_SECTION = 'footer_section',
   CUSTOM = 'custom',
 }
 

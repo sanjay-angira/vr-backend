@@ -1,6 +1,7 @@
 import { ApiProperty, PartialType } from '@nestjs/swagger';
 import {
   IsBoolean,
+  IsEnum,
   IsNotEmpty,
   IsOptional,
   IsString,
@@ -8,6 +9,7 @@ import {
   MaxLength,
   MinLength,
 } from 'class-validator';
+import { CmsPageType } from '../entities/CMS/cms-page.entity';
 
 export class CreateCmsPageDto {
   @ApiProperty({ example: 'Privacy Policy' })
@@ -32,6 +34,15 @@ export class CreateCmsPageDto {
   @IsString()
   @IsNotEmpty()
   content!: string;
+
+  @ApiProperty({
+    example: CmsPageType.information,
+    enum: CmsPageType,
+    required: false,
+  })
+  @IsEnum(CmsPageType)
+  @IsOptional()
+  type?: CmsPageType | null;
 
   @ApiProperty({ example: true, required: false })
   @IsBoolean()

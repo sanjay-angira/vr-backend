@@ -6,6 +6,11 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 
+export enum CmsPageType {
+  information = 'information',
+  policy = 'policy',
+}
+
 @Entity('cms_pages')
 export class CmsPage {
   @PrimaryGeneratedColumn()
@@ -22,6 +27,9 @@ export class CmsPage {
 
   @Column({ type: 'boolean', default: true })
   isActive!: boolean;
+
+  @Column({ type: 'varchar', length: 255, default: null, nullable: true })
+  type!: CmsPageType | null;
 
   @CreateDateColumn({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
   createdAt!: Date;
