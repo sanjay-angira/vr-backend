@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { successResponse } from 'src/commonServices/response.service';
 import { OfferPricingService } from 'src/commonServices/offer-pricing.service';
 import { CmsSection } from 'src/entities/CMS/cmsSettings.entity';
@@ -39,10 +39,20 @@ export class CustomerHomepageService {
     const sections = await this.cmsSectionRepository.find({
       where: { status: true },
       order: { position: 'ASC' },
+      select: {
+        id: true,
+        slug: true,
+        title: true,
+        type: true,
+        position: true,
+        data: true,
+      },
+      loadEagerRelations: false,
     });
+    const categoryCache = new Map<number, Promise<Category | null>>();
 
     const mappedSections = await Promise.all(
-      sections.map(async (section) => this.mapSection(section)),
+      sections.map(async (section) => this.mapSection(section, categoryCache)),
     );
 
     return successResponse(
@@ -56,21 +66,7 @@ export class CustomerHomepageService {
       where: { status: true },
       order: { position: 'ASC', id: 'ASC' },
     });
-
-    return successResponse(
-      banners.map((banner) => ({
-        id: banner.id,
-        title: banner.title,
-        subtitle: banner.subtitle || '',
-        image: pickOptimizedImageUrl(banner.image, 1920),
-        mobileImage: pickOptimizedImageUrl(
-          banner.mobileImage || banner.image,
-          1200,
-        ),
-        link: banner.bannerLink || '/shop',
-      })),
-      'Homepage banners retrieved successfully',
-    );
+    return successResponse(banners,'Homepage banners retrieved successfully');
   }
 
   /**
@@ -152,9 +148,7 @@ export class CustomerHomepageService {
         categories: categories.map((category) => ({
           slug: category.categorySlug,
           lastModified:
-            toIso(category.updatedAt) ||
-            toIso(category.createdAt) ||
-            undefined,
+            toIso(category.updatedAt) || toIso(category.createdAt) || undefined,
         })),
       },
       'Sitemap entries retrieved successfully',
@@ -166,16 +160,29 @@ export class CustomerHomepageService {
     return Number.isFinite(maxProducts) && maxProducts > 0 ? maxProducts : 8;
   }
 
-  private async mapSection(section: CmsSection) {
+  private async mapSection(
+    section: CmsSection,
+    categoryCache: Map<number, Promise<Category | null>>,
+  ) {
     const limit = this.getMaxItems(section);
     const rawData =
       section.data && typeof section.data === 'object' ? section.data : {};
+    const sectionType = String(section.type);
+    const isCustom = sectionType === 'custom';
 
     const [products, categories, blogs, reviews] = await Promise.all([
-      this.loadProducts(section.id, limit),
-      this.loadCategories(section.id, limit),
-      this.loadBlogs(section.id, limit),
-      this.loadReviews(section.id, limit),
+      sectionType === 'product_slider' || isCustom
+        ? this.loadProducts(section.id, limit, categoryCache)
+        : Promise.resolve([]),
+      sectionType === 'category_slider' || isCustom
+        ? this.loadCategories(section.id, limit)
+        : Promise.resolve([]),
+      sectionType === 'blog_section' || isCustom
+        ? this.loadBlogs(section.id, limit)
+        : Promise.resolve([]),
+      sectionType === 'review_section' || isCustom
+        ? this.loadReviews(section.id, limit)
+        : Promise.resolve([]),
     ]);
 
     return {
@@ -191,8 +198,7 @@ export class CustomerHomepageService {
         headingAccent: rawData.headingAccent ?? '',
         description: rawData.description ?? '',
         displayStyle: rawData.displayStyle ?? 'grid',
-        bannerEffect:
-          rawData.bannerEffect === 'slide' ? 'slide' : 'fade',
+        bannerEffect: rawData.bannerEffect === 'slide' ? 'slide' : 'fade',
         maxProducts: limit,
       },
       products,
@@ -203,7 +209,11 @@ export class CustomerHomepageService {
     };
   }
 
-  private async loadProducts(sectionId: number, limit: number) {
+  private async loadProducts(
+    sectionId: number,
+    limit: number,
+    categoryCache: Map<number, Promise<Category | null>>,
+  ) {
     // Limit by product id first — TypeORM `.take()` with multi-joins
     // otherwise truncates joined rows and can return far fewer products.
     const productIds = (
@@ -218,7 +228,7 @@ export class CustomerHomepageService {
         })
         .orderBy('product.id', 'ASC')
         .take(limit)
-        .getRawMany()
+        .getRawMany<{ id: string | number }>()
     )
       .map((row) => Number(row.id))
       .filter((id) => Number.isFinite(id) && id > 0);
@@ -227,33 +237,37 @@ export class CustomerHomepageService {
       return [];
     }
 
-    const products = await this.productRepository
-      .createQueryBuilder('product')
-      .leftJoinAndSelect('product.variants', 'variants')
-      .leftJoinAndSelect('variants.images', 'variantImages')
-      .leftJoinAndSelect('variants.productVariantOffers', 'variantOffers')
-      .leftJoinAndSelect('product.category', 'category')
-      .leftJoinAndSelect('product.brand', 'brand')
-      .leftJoinAndSelect('brand.brandOffers', 'brandOffers')
-      .leftJoinAndSelect('product.productOffers', 'productOffers')
-      .leftJoinAndSelect('product.reviews', 'reviews')
-      .where('product.id IN (:...productIds)', { productIds })
-      .getMany();
+    const products = await this.productRepository.find({
+      where: { id: In(productIds) },
+      relations: {
+        variants: { images: true, productVariantOffers: true },
+        category: { categoryOffers: true },
+        brand: { brandOffers: true },
+        productOffers: true,
+      },
+      relationLoadStrategy: 'query',
+      loadEagerRelations: false,
+    });
 
-    const productById = new Map(products.map((product) => [product.id, product]));
+    const productById = new Map(
+      products.map((product) => [product.id, product]),
+    );
     const orderedProducts = productIds
       .map((id) => productById.get(id))
       .filter((product): product is Product => Boolean(product));
 
+    const reviewStats = await this.loadProductReviewStats(productIds);
     const mappedProducts = await Promise.all(
       orderedProducts.map(async (product) => {
         const categoryWithHierarchy = product.category?.id
-          ? await this.offerPricingService.loadCompleteCategoryHierarchy(
-              product.category.id,
-            )
+          ? await this.getCategoryHierarchy(product.category.id, categoryCache)
           : null;
 
-        return this.mapProductCard(product, categoryWithHierarchy);
+        return this.mapProductCard(
+          product,
+          categoryWithHierarchy,
+          reviewStats.get(product.id),
+        );
       }),
     );
 
@@ -263,6 +277,7 @@ export class CustomerHomepageService {
   private mapProductCard(
     product: Product,
     categoryWithHierarchy: Category | null,
+    reviewStats?: { rating: number; reviewCount: number },
   ) {
     const bestVariantResult = this.offerPricingService.findBestVariant(
       product,
@@ -278,16 +293,6 @@ export class CustomerHomepageService {
     const variantImages = [...(variant.images || [])].sort(
       (a, b) => a.sortOrder - b.sortOrder,
     );
-    const approvedReviews = (product.reviews || []).filter(
-      (review) => review.isApproved,
-    );
-    const averageRating = approvedReviews.length
-      ? approvedReviews.reduce(
-          (sum, review) => sum + Number(review.rating || 0),
-          0,
-        ) / approvedReviews.length
-      : 0;
-
     return {
       id: String(variant.id),
       // Canonical product path — cards must not use variant.slug in /product/[slug]
@@ -303,10 +308,52 @@ export class CustomerHomepageService {
       appliedOffer: pricing.appliedOffer,
       image: pickVariantCardImage(variantImages, 400),
       category: product.category?.categoryName || '',
-      rating: Math.round(averageRating * 10) / 10,
-      reviewCount: approvedReviews.length,
+      rating: reviewStats?.rating ?? 0,
+      reviewCount: reviewStats?.reviewCount ?? 0,
       inStock: Number(variant.stock) > 0,
     };
+  }
+
+  private async getCategoryHierarchy(
+    categoryId: number,
+    categoryCache: Map<number, Promise<Category | null>>,
+  ): Promise<Category | null> {
+    let hierarchy = categoryCache.get(categoryId);
+    if (!hierarchy) {
+      hierarchy =
+        this.offerPricingService.loadCompleteCategoryHierarchy(categoryId);
+      categoryCache.set(categoryId, hierarchy);
+    }
+    return hierarchy;
+  }
+
+  private async loadProductReviewStats(productIds: number[]) {
+    if (!productIds.length)
+      return new Map<number, { rating: number; reviewCount: number }>();
+
+    const rows = await this.reviewRepository
+      .createQueryBuilder('review')
+      .select('review."productId"', 'productId')
+      .addSelect('AVG(COALESCE(review.rating, 0))', 'averageRating')
+      .addSelect('COUNT(review.id)', 'reviewCount')
+      .where('review."productId" IN (:...productIds)', { productIds })
+      .andWhere('review.isApproved = :isApproved', { isApproved: true })
+      .groupBy('review."productId"')
+      .getRawMany<{
+        productId: string | number;
+        averageRating: string | number | null;
+        reviewCount: string | number;
+      }>();
+
+    return new Map(
+      rows.map((row) => [
+        Number(row.productId),
+        {
+          rating: Math.round(Number(row.averageRating || 0) * 10) / 10,
+          reviewCount: Number(row.reviewCount || 0),
+        },
+      ]),
+    );
   }
 
   private async loadCategories(sectionId: number, limit: number) {
@@ -317,6 +364,7 @@ export class CustomerHomepageService {
         publishStatus: 'published',
       },
       relations: [],
+      loadEagerRelations: false,
       order: { id: 'ASC' },
       take: limit,
     });

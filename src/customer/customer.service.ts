@@ -142,10 +142,7 @@ export class CustomerService {
     return start <= today && end >= today;
   }
 
-  private isCouponUserAllowed(
-    coupon: Coupon,
-    userId?: number | null,
-  ): boolean {
+  private isCouponUserAllowed(coupon: Coupon, userId?: number | null): boolean {
     if (!coupon.isUserSpecific) return true;
     if (!userId) return false;
     return (coupon.users || []).some(
@@ -224,11 +221,7 @@ export class CustomerService {
       relations: ['users'],
     });
 
-    if (
-      !coupon ||
-      !coupon.isActive ||
-      !this.isCouponWithinValidity(coupon)
-    ) {
+    if (!coupon || !coupon.isActive || !this.isCouponWithinValidity(coupon)) {
       return null;
     }
 
@@ -437,7 +430,9 @@ export class CustomerService {
   }
 
   async searchStore(q?: string, limitRaw?: string | number) {
-    const query = String(q || '').trim().slice(0, 80);
+    const query = String(q || '')
+      .trim()
+      .slice(0, 80);
     const safe = query.replace(/[%_\\]/g, '').trim();
     const parsed = Number(limitRaw);
     const limit = Number.isFinite(parsed)
@@ -538,9 +533,7 @@ export class CustomerService {
           name: product.productName || '',
           slug,
           image: pickVariantCardImage(variant?.images, 200),
-          href: slug
-            ? `/product/${encodeURIComponent(slug)}`
-            : '/products',
+          href: slug ? `/product/${encodeURIComponent(slug)}` : '/products',
           category: category
             ? {
                 id: category.id,
@@ -636,9 +629,7 @@ export class CustomerService {
         const title = String(section.title || '').trim();
         const slug =
           (section.slug && String(section.slug).trim()) ||
-          this.slugifySectionTitle(
-            title || heading || `section-${section.id}`,
-          );
+          this.slugifySectionTitle(title || heading || `section-${section.id}`);
         return {
           slug,
           title: title || heading,
@@ -653,7 +644,8 @@ export class CustomerService {
           id: category.id,
           name: category.categoryName,
           slug: category.categorySlug,
-          image: pickOptimizedImageUrl(categoryImageSource(category), 400) || null,
+          image:
+            pickOptimizedImageUrl(categoryImageSource(category), 400) || null,
           mobileImage:
             pickOptimizedImageUrl(categoryMobileImageSource(category), 400) ||
             null,
@@ -775,6 +767,16 @@ export class CustomerService {
       .map((id) => Number(id.trim()))
       .filter((id) => Number.isFinite(id) && id > 0);
     const hasOfferIds = offerIds.length > 0;
+    const needsFullScan =
+      hasMinPrice ||
+      hasMaxPrice ||
+      bestDeals ||
+      hasOfferIds ||
+      hasMinDiscount ||
+      sortBy === 'price_asc' ||
+      sortBy === 'price_desc' ||
+      sortBy === 'discount_desc' ||
+      sortBy === 'name_asc';
 
     try {
       // Step 1: collect product ids without heavy joins (avoids distinct/join drops)
@@ -839,11 +841,22 @@ export class CustomerService {
         );
       }
 
-      const idRows = await idQb
+      const matchingCount = needsFullScan
+        ? undefined
+        : await idQb.clone().getCount();
+      const pagedIdQuery = idQb
+        .clone()
         .distinct(true)
         .orderBy('product.createdAt', 'DESC')
-        .addOrderBy('product.id', 'DESC')
-        .getRawMany<{ id: string | number }>();
+        .addOrderBy('product.id', 'DESC');
+
+      if (!needsFullScan) {
+        pagedIdQuery.offset((pageNumber - 1) * pageSize).limit(pageSize);
+      }
+
+      const idRows = await pagedIdQuery.getRawMany<{
+        id: string | number;
+      }>();
 
       // Deduplicate ids while preserving newest-first order
       const seenIds = new Set<number>();
@@ -857,57 +870,25 @@ export class CustomerService {
 
       if (!productIds.length) {
         return successResponse(
-          { rows: [], count: 0, pageNumber, pageSize },
+          { rows: [], count: matchingCount ?? 0, pageNumber, pageSize },
           'Store products retrieved successfully',
         );
       }
 
-      // Price / deal sorts need every card priced first. Newest listing can
-      // load only the requested page (big win for PDP "recommended" strip).
-      const needsFullScan =
-        hasMinPrice ||
-        hasMaxPrice ||
-        bestDeals ||
-        hasOfferIds ||
-        hasMinDiscount ||
-        sortBy === 'price_asc' ||
-        sortBy === 'price_desc' ||
-        sortBy === 'discount_desc' ||
-        sortBy === 'name_asc';
-
-      const idsToLoad = needsFullScan
-        ? productIds
-        : productIds.slice(
-            (pageNumber - 1) * pageSize,
-            (pageNumber - 1) * pageSize + pageSize,
-          );
-
-      if (!idsToLoad.length) {
-        return successResponse(
-          {
-            rows: [],
-            count: needsFullScan ? 0 : productIds.length,
-            pageNumber,
-            pageSize,
-          },
-          'Store products retrieved successfully',
-        );
-      }
+      const idsToLoad = productIds;
 
       // Step 2: load full product graphs for those ids only
-      const products = await this.productRepository
-        .createQueryBuilder('product')
-        .leftJoinAndSelect('product.variants', 'variants')
-        .leftJoinAndSelect('variants.images', 'variantImages')
-        .leftJoinAndSelect('variants.productVariantOffers', 'variantOffers')
-        .leftJoinAndSelect('product.category', 'category')
-        .leftJoinAndSelect('category.categoryOffers', 'categoryOffers')
-        .leftJoinAndSelect('product.brand', 'brand')
-        .leftJoinAndSelect('brand.brandOffers', 'brandOffers')
-        .leftJoinAndSelect('product.productOffers', 'productOffers')
-        .leftJoinAndSelect('product.reviews', 'reviews')
-        .where('product.id IN (:...productIds)', { productIds: idsToLoad })
-        .getMany();
+      const products = await this.productRepository.find({
+        where: { id: In(idsToLoad) },
+        relations: {
+          variants: { images: true, productVariantOffers: true },
+          category: { categoryOffers: true },
+          brand: { brandOffers: true },
+          productOffers: true,
+        },
+        relationLoadStrategy: 'query',
+        loadEagerRelations: false,
+      });
 
       const productById = new Map(
         products.map((product) => [product.id, product]),
@@ -916,11 +897,16 @@ export class CustomerService {
         .map((id) => productById.get(id))
         .filter((product): product is Product => Boolean(product));
 
-      const categoryCache = new Map<number, Category | null>();
+      const categoryCache = new Map<number, Promise<Category | null>>();
+      const reviewStats = await this.loadStoreProductReviewStats(idsToLoad);
       const mapped = (
         await Promise.all(
           orderedProducts.map((product) =>
-            this.mapStoreProductCard(product, categoryCache),
+            this.mapStoreProductCard(
+              product,
+              categoryCache,
+              reviewStats.get(product.id),
+            ),
           ),
         )
       ).filter((row): row is StoreProductCard => row !== null);
@@ -976,9 +962,12 @@ export class CustomerService {
 
       filtered = this.sortStoreProducts(filtered, sortBy);
 
-      const count = needsFullScan ? filtered.length : productIds.length;
+      const count = needsFullScan ? filtered.length : (matchingCount ?? 0);
       const rows = needsFullScan
-        ? filtered.slice((pageNumber - 1) * pageSize, (pageNumber - 1) * pageSize + pageSize)
+        ? filtered.slice(
+            (pageNumber - 1) * pageSize,
+            (pageNumber - 1) * pageSize + pageSize,
+          )
         : filtered;
 
       return successResponse(
@@ -1074,22 +1063,21 @@ export class CustomerService {
 
   private async mapStoreProductCard(
     product: Product,
-    categoryCache?: Map<number, Category | null>,
+    categoryCache: Map<number, Promise<Category | null>>,
+    reviewStats?: { rating: number; reviewCount: number },
   ): Promise<StoreProductCard | null> {
     // Same lowest-variant method as homepage (`mapProductCard`)
     let categoryWithHierarchy: Category | null = null;
     if (product.category?.id) {
-      const cached = categoryCache?.get(product.category.id);
-      if (cached !== undefined) {
-        categoryWithHierarchy = cached;
-      } else {
-        categoryWithHierarchy =
-          await this.offerPricingService.loadCompleteCategoryHierarchy(
-            product.category.id,
-            new Set(),
-          );
-        categoryCache?.set(product.category.id, categoryWithHierarchy);
+      let hierarchy = categoryCache.get(product.category.id);
+      if (!hierarchy) {
+        hierarchy = this.offerPricingService.loadCompleteCategoryHierarchy(
+          product.category.id,
+          new Set(),
+        );
+        categoryCache.set(product.category.id, hierarchy);
       }
+      categoryWithHierarchy = await hierarchy;
     }
 
     const bestVariantResult = this.offerPricingService.findBestVariant(
@@ -1107,16 +1095,6 @@ export class CustomerService {
     );
     const fullProductName =
       `${product.productName || ''}${variant.name ? ` ${variant.name}` : ''}`.trim();
-
-    const approvedReviews = (product.reviews || []).filter(
-      (review) => review.isApproved,
-    );
-    const averageRating = approvedReviews.length
-      ? approvedReviews.reduce(
-          (sum, review) => sum + Number(review.rating || 0),
-          0,
-        ) / approvedReviews.length
-      : 0;
 
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
@@ -1145,8 +1123,8 @@ export class CustomerService {
       discountAmount: pricing.discountAmount,
       discountPercentage: pricing.discountPercentage,
       appliedOffer: pricing.appliedOffer,
-      rating: Math.round(averageRating * 10) / 10,
-      reviewCount: approvedReviews.length,
+      rating: reviewStats?.rating ?? 0,
+      reviewCount: reviewStats?.reviewCount ?? 0,
       isNew,
       isFeatured,
       hasDeal,
@@ -1172,6 +1150,37 @@ export class CustomerService {
           }
         : null,
     };
+  }
+
+  private async loadStoreProductReviewStats(productIds: number[]) {
+    if (!productIds.length) {
+      return new Map<number, { rating: number; reviewCount: number }>();
+    }
+
+    const rows = await this.dataSource
+      .getRepository(Review)
+      .createQueryBuilder('review')
+      .select('review."productId"', 'productId')
+      .addSelect('AVG(COALESCE(review.rating, 0))', 'averageRating')
+      .addSelect('COUNT(review.id)', 'reviewCount')
+      .where('review."productId" IN (:...productIds)', { productIds })
+      .andWhere('review."isApproved" = true')
+      .groupBy('review."productId"')
+      .getRawMany<{
+        productId: string | number;
+        averageRating: string | number | null;
+        reviewCount: string | number;
+      }>();
+
+    return new Map(
+      rows.map((row) => [
+        Number(row.productId),
+        {
+          rating: Math.round(Number(row.averageRating || 0) * 10) / 10,
+          reviewCount: Number(row.reviewCount || 0),
+        },
+      ]),
+    );
   }
 
   async getProductBySlug(slug: string) {
@@ -1201,31 +1210,30 @@ export class CustomerService {
         return errorResponse('Product not found', 404);
       }
 
-      const [variants, productAttributes, faqs, reviews] =
-        await Promise.all([
-          this.variationRepository.find({
-            where: { product: { id: product.id } },
-            relations: {
-              images: true,
-              productVariantOffers: true,
-              variantAttributes: { attribute: true },
-            },
-            relationLoadStrategy: 'query',
-          }),
-          this.dataSource.getRepository(ProductAttribute).find({
-            where: { product: { id: product.id } },
-            relations: { attribute: true },
-          }),
-          this.dataSource.getRepository(Faq).find({
-            where: { product: { id: product.id }, isActive: true },
-            order: { sortOrder: 'ASC' },
-          }),
-          this.dataSource.getRepository(Review).find({
-            where: { product: { id: product.id }, isApproved: true },
-            relations: { user: true },
-            order: { createdAt: 'DESC' },
-          }),
-        ]);
+      const [variants, productAttributes, faqs, reviews] = await Promise.all([
+        this.variationRepository.find({
+          where: { product: { id: product.id } },
+          relations: {
+            images: true,
+            productVariantOffers: true,
+            variantAttributes: { attribute: true },
+          },
+          relationLoadStrategy: 'query',
+        }),
+        this.dataSource.getRepository(ProductAttribute).find({
+          where: { product: { id: product.id } },
+          relations: { attribute: true },
+        }),
+        this.dataSource.getRepository(Faq).find({
+          where: { product: { id: product.id }, isActive: true },
+          order: { sortOrder: 'ASC' },
+        }),
+        this.dataSource.getRepository(Review).find({
+          where: { product: { id: product.id }, isApproved: true },
+          relations: { user: true },
+          order: { createdAt: 'DESC' },
+        }),
+      ]);
 
       product.variants = variants;
       product.productAttributes = productAttributes;
@@ -1687,14 +1695,11 @@ export class CustomerService {
         ? Math.max(0, discountTotal - couponDiscount)
         : offerDiscountFromItems,
     );
-    const couponId =
-      couponJson?.id != null ? Number(couponJson.id) : null;
+    const couponId = couponJson?.id != null ? Number(couponJson.id) : null;
     const couponCode =
       couponJson?.couponCode != null ? String(couponJson.couponCode) : null;
     const couponDiscountType =
-      couponJson?.discountType != null
-        ? String(couponJson.discountType)
-        : null;
+      couponJson?.discountType != null ? String(couponJson.discountType) : null;
     const couponDiscountValue =
       couponJson?.discountValue != null
         ? Number(couponJson.discountValue)
@@ -1773,9 +1778,7 @@ export class CustomerService {
           row.offerJson && typeof row.offerJson === 'object'
             ? row.offerJson
             : null;
-        const listUnitPrice = Number(
-          row.listUnitPrice ?? row.unitPrice,
-        );
+        const listUnitPrice = Number(row.listUnitPrice ?? row.unitPrice);
         const discountAmount = Number(row.discountAmount ?? 0);
         return {
           id: row.id,
@@ -1914,9 +1917,7 @@ export class CustomerService {
     const shippingFee = 0;
     const offerLineSnapshots = cartData.items.map((item) => {
       const quantity = Number(item.quantity) || 0;
-      const unitPrice = Number(
-        item.finalPrice ?? item.priceAtTime ?? 0,
-      );
+      const unitPrice = Number(item.finalPrice ?? item.priceAtTime ?? 0);
       const listUnitPrice = Number(
         item.sellingPrice != null && Number.isFinite(Number(item.sellingPrice))
           ? item.sellingPrice
@@ -1925,14 +1926,13 @@ export class CustomerService {
       const perUnitDiscount = Math.max(
         0,
         Number(
-          item.totalDiscount != null && Number.isFinite(Number(item.totalDiscount))
+          item.totalDiscount != null &&
+            Number.isFinite(Number(item.totalDiscount))
             ? item.totalDiscount
             : listUnitPrice - unitPrice,
         ),
       );
-      const linePayable = Number(
-        item.subtotal ?? quantity * unitPrice,
-      );
+      const linePayable = Number(item.subtotal ?? quantity * unitPrice);
       const lineList = listUnitPrice * quantity;
       const lineDiscount = Math.max(0, lineList - linePayable);
       const appliedOffer =
@@ -2282,7 +2282,10 @@ export class CustomerService {
         await this.orderRepository.save(order);
       }
       await this.finalizePaidOrder(order);
-      return successResponse({ orderNumber: order.orderNumber }, 'Payment captured');
+      return successResponse(
+        { orderNumber: order.orderNumber },
+        'Payment captured',
+      );
     }
 
     if (event === 'payment.failed') {
@@ -2290,7 +2293,10 @@ export class CustomerService {
         order.paymentStatus = 'failed';
         await this.orderRepository.save(order);
       }
-      return successResponse({ orderNumber: order.orderNumber }, 'Payment failed');
+      return successResponse(
+        { orderNumber: order.orderNumber },
+        'Payment failed',
+      );
     }
 
     return successResponse({ ignored: true, event }, 'Webhook ignored');
@@ -2308,9 +2314,7 @@ export class CustomerService {
     });
 
     return successResponse(
-      orders.map((order) =>
-        this.mapOrderResponse(order, order.items || []),
-      ),
+      orders.map((order) => this.mapOrderResponse(order, order.items || [])),
       'Orders retrieved successfully',
     );
   }
