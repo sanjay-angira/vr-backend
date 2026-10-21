@@ -7,6 +7,7 @@ import {
   IsNotEmpty,
   IsNumber,
   IsOptional,
+  IsObject,
   IsString,
   ValidateIf,
   ValidateNested,
@@ -165,6 +166,10 @@ export class CreateProductSeoDto {
 
   @IsOptional()
   @IsString()
+  ogType?: string;
+
+  @IsOptional()
+  @IsString()
   twitterCard?: string;
 
   @IsOptional()
@@ -182,6 +187,14 @@ export class CreateProductSeoDto {
   @IsOptional()
   @IsString()
   schemaType?: string;
+
+  @IsOptional()
+  @IsObject()
+  schemaData?: Record<string, unknown> | null;
+
+  @IsOptional()
+  @IsString()
+  slug?: string;
 
   @IsOptional()
   @IsString()
@@ -348,6 +361,10 @@ export class UpdateProductSeoDto {
 
   @IsOptional()
   @IsString()
+  ogType?: string;
+
+  @IsOptional()
+  @IsString()
   twitterCard?: string;
 
   @IsOptional()
@@ -365,6 +382,14 @@ export class UpdateProductSeoDto {
   @IsOptional()
   @IsString()
   schemaType?: string;
+
+  @IsOptional()
+  @IsObject()
+  schemaData?: Record<string, unknown> | null;
+
+  @IsOptional()
+  @IsString()
+  slug?: string;
 
   @IsOptional()
   @IsString()

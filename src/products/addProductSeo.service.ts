@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Product } from 'src/entities/product/product.entity';
 import { ProductSeo } from 'src/entities/product/product-seo.entity';
+import { CreateProductSeoDto } from 'src/dto/product.dto';
 
 @Injectable()
 export class AddProductSeoService {
@@ -11,7 +12,10 @@ export class AddProductSeoService {
     private readonly productSeoRepo: Repository<ProductSeo>,
   ) {}
 
-  async addSeo(product: Product, seoDto: any): Promise<ProductSeo> {
+  async addSeo(
+    product: Product,
+    seoDto: CreateProductSeoDto,
+  ): Promise<ProductSeo> {
     /* ================= FIND EXISTING ================= */
     let seo = await this.productSeoRepo.findOne({
       where: { product: { id: product.id } },
@@ -36,6 +40,7 @@ export class AddProductSeoService {
     seo.ogTitle = seoDto.ogTitle ?? null;
     seo.ogDescription = seoDto.ogDescription ?? null;
     seo.ogImage = seoDto.ogImage ?? null;
+    seo.ogType = seoDto.ogType ?? 'product';
 
     seo.twitterCard = seoDto.twitterCard ?? null;
     seo.twitterTitle = seoDto.twitterTitle ?? null;
@@ -43,6 +48,8 @@ export class AddProductSeoService {
     seo.twitterImage = seoDto.twitterImage ?? null;
 
     seo.schemaType = seoDto.schemaType ?? null;
+    seo.schemaData = seoDto.schemaData ?? null;
+    seo.slug = seoDto.slug ?? null;
     seo.breadcrumbsTitle = seoDto.breadcrumbsTitle ?? null;
     seo.primaryKeywordDensity = seoDto.primaryKeywordDensity ?? null;
 
