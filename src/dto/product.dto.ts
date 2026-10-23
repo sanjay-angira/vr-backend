@@ -8,10 +8,12 @@ import {
   IsNumber,
   IsOptional,
   IsObject,
+  Min,
   IsString,
   ValidateIf,
   ValidateNested,
   IsInt,
+  Matches,
 } from 'class-validator';
 import { PublishStatus } from 'src/entities/product/product.entity';
 import { AtttributeViewOption } from 'src/entities/product/product-variant-attribute.entity';
@@ -101,9 +103,30 @@ export class CreateVariantDto {
   @IsNumber()
   stock!: number;
 
-  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0.01)
+  packageHeightCm!: number;
+
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0.01)
+  packageWidthCm!: number;
+
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0.01)
+  packageLengthCm!: number;
+
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0.01)
+  packageWeightGrams!: number;
+
   @IsString()
-  sku?: string;
+  @IsNotEmpty()
+  @Matches(/\S/)
+  sku!: string;
 
   @IsOptional()
   @IsString()
@@ -295,9 +318,30 @@ export class UpdateVariantDto {
   @IsNumber()
   stock?: number;
 
-  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0.01)
+  packageHeightCm!: number;
+
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0.01)
+  packageWidthCm!: number;
+
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0.01)
+  packageLengthCm!: number;
+
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0.01)
+  packageWeightGrams!: number;
+
   @IsString()
-  sku?: string;
+  @IsNotEmpty()
+  @Matches(/\S/)
+  sku!: string;
 
   @IsOptional()
   @IsString()

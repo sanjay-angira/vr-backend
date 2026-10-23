@@ -50,6 +50,11 @@ export class AddProductVariantService {
         throw new BadRequestException('Variant slug is required');
       }
 
+      const sku = v.sku?.trim();
+      if (!sku) {
+        throw new BadRequestException('Variant SKU is required');
+      }
+
       let offers: Offer[] = [];
       if (v.productVariantOffers?.length) {
         const uniqueIds = [...new Set(v.productVariantOffers)];
@@ -65,7 +70,11 @@ export class AddProductVariantService {
         name: variantName,
         price: v.price,
         stock: v.stock,
-        sku: v.sku ?? null,
+        packageHeightCm: v.packageHeightCm,
+        packageWidthCm: v.packageWidthCm,
+        packageLengthCm: v.packageLengthCm,
+        packageWeightGrams: v.packageWeightGrams,
+        sku,
         slug: variantSlug,
         description: v.description ?? null,
         product: { id: product.id },

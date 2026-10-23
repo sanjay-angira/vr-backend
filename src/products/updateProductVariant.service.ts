@@ -30,9 +30,13 @@ export function normalizeVariantImageUrls(
       }
       if (image && typeof image === 'object') {
         const record = image as Record<string, unknown>;
-        return String(
-          record.originalUrl ?? record.url ?? record.image ?? record.Location ?? '',
-        ).trim();
+        const url = [
+          record.originalUrl,
+          record.url,
+          record.image,
+          record.Location,
+        ].find((value): value is string => typeof value === 'string');
+        return url?.trim() ?? '';
       }
       return '';
     })
@@ -48,8 +52,12 @@ export function hasVariantImageChanged(
   existing: string[] | null | undefined,
   incoming: string[] | null | undefined,
 ): boolean {
-  const normalizedExisting = [...new Set((existing ?? []).map((url) => url.trim()).filter(Boolean))];
-  const normalizedIncoming = [...new Set((incoming ?? []).map((url) => url.trim()).filter(Boolean))];
+  const normalizedExisting = [
+    ...new Set((existing ?? []).map((url) => url.trim()).filter(Boolean)),
+  ];
+  const normalizedIncoming = [
+    ...new Set((incoming ?? []).map((url) => url.trim()).filter(Boolean)),
+  ];
 
   if (normalizedExisting.length !== normalizedIncoming.length) {
     return true;
@@ -115,10 +123,19 @@ export class UpdateProductVariantService {
           throw new BadRequestException('Variant slug is required');
         }
 
+        const sku = v.sku?.trim();
+        if (!sku) {
+          throw new BadRequestException('Variant SKU is required');
+        }
+
         existingVariant.name = variantName;
         existingVariant.price = v.price ?? existingVariant.price;
         existingVariant.stock = v.stock ?? existingVariant.stock;
-        existingVariant.sku = v.sku ?? existingVariant.sku;
+        existingVariant.packageHeightCm = v.packageHeightCm;
+        existingVariant.packageWidthCm = v.packageWidthCm;
+        existingVariant.packageLengthCm = v.packageLengthCm;
+        existingVariant.packageWeightGrams = v.packageWeightGrams;
+        existingVariant.sku = sku;
         existingVariant.slug = variantSlug;
         if (v.description !== undefined) {
           existingVariant.description = v.description ?? null;
@@ -177,11 +194,20 @@ export class UpdateProductVariantService {
           throw new BadRequestException('Variant slug is required');
         }
 
+        const sku = v.sku?.trim();
+        if (!sku) {
+          throw new BadRequestException('Variant SKU is required');
+        }
+
         const newVariant = this.variantRepo.create({
           name: variantName,
           price: v.price,
           stock: v.stock,
-          sku: v.sku ?? null,
+          packageHeightCm: v.packageHeightCm,
+          packageWidthCm: v.packageWidthCm,
+          packageLengthCm: v.packageLengthCm,
+          packageWeightGrams: v.packageWeightGrams,
+          sku,
           slug: variantSlug,
           description: v.description ?? null,
           product: { id: product.id },

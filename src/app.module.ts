@@ -27,12 +27,15 @@ import { CmsSectionModule } from './cms-section/cms-section.module';
 import { UploadModule } from './upload/upload.module';
 import { CmsPageModule } from './cms-page/cms-page.module';
 import { DashboardModule } from './dashboard/dashboard.module';
+import { ShippingModule } from './shipping/shipping.module';
 import { renameProductImageUrlColumns } from './commonServices/rename-product-image-url';
 import { migrateCmsImagesOntoParents } from './commonServices/migrate-cms-images-onto-parents';
 import { removeHeaderCms } from './commonServices/remove-header-cms';
 import { removeUnusedFooterCms } from './commonServices/remove-unused-footer-cms';
 import { migrateProductImagesToVariants } from './commonServices/migrate-product-images-to-variants';
 import { migrateCategorySeoFields } from './commonServices/migrate-category-seo-fields';
+import { migrateProductVariantPackageDimensions } from './commonServices/migrate-product-variant-package-dimensions';
+import { migrateRequiredVariantSkus } from './commonServices/migrate-required-variant-skus';
 
 // Main application module
 @Module({
@@ -80,6 +83,8 @@ import { migrateCategorySeoFields } from './commonServices/migrate-category-seo-
           await removeHeaderCms(prep);
           await removeUnusedFooterCms(prep);
           await migrateCategorySeoFields(prep);
+          await migrateProductVariantPackageDimensions(prep);
+          await migrateRequiredVariantSkus(prep);
         } finally {
           await prep.destroy();
         }
@@ -115,6 +120,7 @@ import { migrateCategorySeoFields } from './commonServices/migrate-category-seo-
     UploadModule,
     CmsPageModule,
     DashboardModule,
+    ShippingModule,
   ],
   controllers: [],
   providers: [],

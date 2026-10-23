@@ -28,8 +28,20 @@ export class ProductVariant {
   @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
   stock!: number;
 
-  @Column({ type: 'varchar', nullable: true })
-  sku!: string | null;
+  @Column({ type: 'decimal', precision: 10, scale: 2, default: 1 })
+  packageHeightCm!: number;
+
+  @Column({ type: 'decimal', precision: 10, scale: 2, default: 1 })
+  packageWidthCm!: number;
+
+  @Column({ type: 'decimal', precision: 10, scale: 2, default: 1 })
+  packageLengthCm!: number;
+
+  @Column({ type: 'decimal', precision: 10, scale: 2, default: 1 })
+  packageWeightGrams!: number;
+
+  @Column({ type: 'varchar', length: 255 })
+  sku!: string;
 
   @Column({ type: 'varchar', nullable: true })
   slug!: string | null;

@@ -34,6 +34,11 @@ describe('update DTO numeric values', () => {
             id: '10',
             price: '199',
             stock: '12',
+            packageHeightCm: '10',
+            packageWidthCm: '15',
+            packageLengthCm: '20',
+            packageWeightGrams: '500',
+            sku: 'SKU-100',
             productVariantOffers: ['12'],
           },
         ],
@@ -50,8 +55,76 @@ describe('update DTO numeric values', () => {
       id: 10,
       price: 199,
       stock: 12,
+      packageHeightCm: 10,
+      packageWidthCm: 15,
+      packageLengthCm: 20,
+      packageWeightGrams: 500,
+      sku: 'SKU-100',
       productVariantOffers: [12],
     });
+  });
+
+  it('requires positive package dimensions and weight for product variants', async () => {
+    await expect(
+      pipe.transform(
+        {
+          variants: [
+            {
+              name: 'Single pack',
+              slug: 'single-pack',
+              price: '199',
+              stock: '12',
+            },
+          ],
+        },
+        { type: 'body', metatype: UpdateProductDto },
+      ),
+    ).rejects.toThrow();
+  });
+
+  it('requires a non-empty SKU for product variants', async () => {
+    await expect(
+      pipe.transform(
+        {
+          variants: [
+            {
+              name: 'Single pack',
+              slug: 'single-pack',
+              price: '199',
+              stock: '12',
+              packageHeightCm: '10',
+              packageWidthCm: '15',
+              packageLengthCm: '20',
+              packageWeightGrams: '500',
+            },
+          ],
+        },
+        { type: 'body', metatype: UpdateProductDto },
+      ),
+    ).rejects.toThrow();
+  });
+
+  it('rejects whitespace-only SKUs for product variants', async () => {
+    await expect(
+      pipe.transform(
+        {
+          variants: [
+            {
+              name: 'Single pack',
+              slug: 'single-pack',
+              price: '199',
+              stock: '12',
+              packageHeightCm: '10',
+              packageWidthCm: '15',
+              packageLengthCm: '20',
+              packageWeightGrams: '500',
+              sku: '   ',
+            },
+          ],
+        },
+        { type: 'body', metatype: UpdateProductDto },
+      ),
+    ).rejects.toThrow();
   });
 
   it('converts brand, blog, and coupon selected IDs from form strings', async () => {

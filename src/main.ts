@@ -9,6 +9,8 @@ import { removeHeaderCms } from './commonServices/remove-header-cms';
 import { removeUnusedFooterCms } from './commonServices/remove-unused-footer-cms';
 import { migrateProductImagesToVariants } from './commonServices/migrate-product-images-to-variants';
 import { migrateCategorySeoFields } from './commonServices/migrate-category-seo-fields';
+import { migrateProductVariantPackageDimensions } from './commonServices/migrate-product-variant-package-dimensions';
+import { migrateRequiredVariantSkus } from './commonServices/migrate-required-variant-skus';
 
 async function prepareImageUrlColumns() {
   const prep = new DataSource({
@@ -18,7 +20,7 @@ async function prepareImageUrlColumns() {
     username: process.env.DB_USERNAME,
     password: process.env.DB_PASSWORD,
     database: process.env.DB_DATABASE,
-    synchronize: true,
+    synchronize: false,
     entities: [],
   });
 
@@ -30,6 +32,8 @@ async function prepareImageUrlColumns() {
     await removeHeaderCms(prep);
     await removeUnusedFooterCms(prep);
     await migrateCategorySeoFields(prep);
+    await migrateProductVariantPackageDimensions(prep);
+    await migrateRequiredVariantSkus(prep);
   } finally {
     await prep.destroy();
   }
@@ -44,10 +48,7 @@ async function bootstrap() {
 
   app.enableCors({
     origin: [
-      'http://localhost:3000',
-      'http://localhost:3001',
-      'http://localhost:3002',
-      'http://localhost:4200',
+      'http://localhost:3000',  
       'https://vrindavanrasa.com',
       'https://www.vrindavanrasa.com',
     ],

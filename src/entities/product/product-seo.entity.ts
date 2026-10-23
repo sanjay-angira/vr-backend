@@ -19,7 +19,7 @@ export class ProductSeo {
   @OneToOne(() => Product, (product) => product.seo, {
     onDelete: 'CASCADE',
   })
-  @JoinColumn({ name: 'product_id' })
+  @JoinColumn({ name: 'productId' })
   product!: Product;
 
   @Column({ type: 'varchar', length: 255, nullable: true })
