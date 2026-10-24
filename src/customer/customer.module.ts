@@ -29,6 +29,7 @@ import { Coupon } from 'src/entities/user/coupon.entity';
 import { RecentlyViewed } from 'src/entities/recently-viewed/recently-viewed.entity';
 import { CustomerRecentlyViewedService } from './customer-recently-viewed.service';
 import { Offer } from 'src/entities/product/offer.entity';
+import { ShippingModule } from 'src/shipping/shipping.module';
 
 @Module({
   imports: [
@@ -54,6 +55,7 @@ import { Offer } from 'src/entities/product/offer.entity';
       Offer,
     ]),
     CommonModule,
+    ShippingModule,
   ],
   controllers: [CustomerController, CustomerAuthController],
   providers: [

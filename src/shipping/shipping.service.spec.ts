@@ -33,8 +33,11 @@ describe('ShippingService', () => {
     await expect(service.checkPincode('281001')).resolves.toEqual({
       pincode: '281001',
       serviceable: true,
+      shippingFee: 0,
+      freeShipping: false,
       prepaidAvailable: true,
       codAvailable: true,
+      estimatedDeliveryDate: null,
       city: 'Mathura',
       message: 'PIN code checked',
     });
@@ -60,6 +63,62 @@ describe('ShippingService', () => {
     expect(get).not.toHaveBeenCalled();
   });
 
+  it('reverse geocodes a location to a PIN code', async () => {
+    const get = jest.fn().mockReturnValue(
+      of({
+        data: {
+          status: 'OK',
+          results: [
+            {
+              address_components: [
+                { long_name: '281001', types: ['postal_code'] },
+              ],
+            },
+          ],
+        },
+      }),
+    );
+    const service = new ShippingService(
+      { get } as unknown as HttpService,
+      { get: jest.fn((key: string) => (key === 'GOOGLE_MAPS_API_KEY' ? 'test-key' : undefined)) } as unknown as ConfigService,
+    );
+
+    await expect(service.reverseGeocode(27.5, 77.7)).resolves.toEqual({
+      pincode: '281001',
+      city: null,
+      message: 'Location matched your current delivery PIN code.',
+    });
+    expect(get).toHaveBeenCalledWith(
+      'https://maps.googleapis.com/maps/api/geocode/json',
+      expect.objectContaining({
+        params: { latlng: '27.5,77.7', key: 'test-key' },
+        timeout: 8000,
+      }),
+    );
+  });
+
+  it('returns a helpful response when Google has no postal code for a location', async () => {
+    const get = jest.fn().mockReturnValue(
+      of({
+        data: {
+          status: 'ZERO_RESULTS',
+          results: [],
+        },
+      }),
+    );
+    const service = new ShippingService(
+      { get } as unknown as HttpService,
+      { get: jest.fn((key: string) => (key === 'GOOGLE_MAPS_API_KEY' ? 'test-key' : undefined)) } as unknown as ConfigService,
+    );
+
+    await expect(service.reverseGeocode(27.5, 77.7)).resolves.toEqual({
+      pincode: null,
+      city: null,
+      message:
+        'We could not find a postal code for your current location. Please enter your PIN code manually.',
+    });
+  });
+
   it('requests a shipping estimate with the configured warehouse PIN', async () => {
     const get = jest.fn().mockReturnValue(of({ data: [{ total_amount: 45 }] }));
     const http = { get } as unknown as HttpService;
@@ -76,6 +135,9 @@ describe('ShippingService', () => {
       service.calculateShipping({
         deliveryPincode: '110001',
         weightGrams: 500,
+        packageHeightCm: 10,
+        packageWidthCm: 15,
+        packageLengthCm: 20,
         paymentMode: 'COD',
       }),
     ).resolves.toEqual([{ total_amount: 45 }]);
@@ -88,6 +150,9 @@ describe('ShippingService', () => {
           d_pin: '110001',
           o_pin: '281001',
           cgm: 500,
+          h: 10,
+          b: 15,
+          l: 20,
           pt: 'COD',
         },
         timeout: 10000,

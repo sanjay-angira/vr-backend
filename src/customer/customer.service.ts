@@ -45,6 +45,10 @@ import { CustomerAddressService } from './customer-address.service';
 import { Coupon, DiscountType } from 'src/entities/user/coupon.entity';
 import { Offer } from 'src/entities/product/offer.entity';
 import { ApplyCouponDto } from 'src/dto/coupon.dto';
+import {
+  PaymentMode,
+  ShippingService,
+} from 'src/shipping/shipping.service';
 
 type ResolvedCheckoutCoupon = {
   id: number;
@@ -119,6 +123,7 @@ export class CustomerService {
     private readonly offerPricingService: OfferPricingService,
     private readonly razorpayService: RazorpayService,
     private readonly customerAddressService: CustomerAddressService,
+    private readonly shippingService: ShippingService,
     private readonly dataSource: DataSource,
   ) {}
 
@@ -1458,6 +1463,10 @@ export class CustomerService {
         price: number;
         stock: number;
         sku: string | null;
+        packageHeightCm: number;
+        packageWidthCm: number;
+        packageLengthCm: number;
+        packageWeightGrams: number;
         images: unknown[];
         product: {
           id: number;
@@ -1536,6 +1545,10 @@ export class CustomerService {
               price: Number(variant.price),
               stock: Number(variant.stock),
               sku: variant.sku,
+              packageHeightCm: Number(variant.packageHeightCm),
+              packageWidthCm: Number(variant.packageWidthCm),
+              packageLengthCm: Number(variant.packageLengthCm),
+              packageWeightGrams: Number(variant.packageWeightGrams),
               images: variant.images || [],
               product: variant.product
                 ? {
@@ -1914,7 +1927,83 @@ export class CustomerService {
       this.razorpayService.assertConfigured();
     }
 
-    const shippingFee = 0;
+    const shippingAddress = await this.buildShippingAddress(dto);
+    const pincode = this.shippingService.normalizePincode(shippingAddress.pincode);
+
+    if (!pincode) {
+      throw new BadRequestException('A valid delivery PIN code is required');
+    }
+
+    const shippingPackage = cartData.items.reduce(
+      (packageData, item) => {
+        const quantity = Number(item.quantity) || 0;
+        const weight = Number(
+          item.variant?.packageWeightGrams ??
+            item.attributesSnapshot?.packageWeightGrams,
+        );
+        const height = Number(
+          item.variant?.packageHeightCm ??
+            item.attributesSnapshot?.packageHeightCm,
+        );
+        const width = Number(
+          item.variant?.packageWidthCm ??
+            item.attributesSnapshot?.packageWidthCm,
+        );
+        const length = Number(
+          item.variant?.packageLengthCm ??
+            item.attributesSnapshot?.packageLengthCm,
+        );
+
+        if (
+          !Number.isFinite(weight) ||
+          weight <= 0 ||
+          !Number.isFinite(height) ||
+          height <= 0 ||
+          !Number.isFinite(width) ||
+          width <= 0 ||
+          !Number.isFinite(length) ||
+          length <= 0
+        ) {
+          throw new BadRequestException(
+            `Package weight or dimensions are missing or invalid for ${item.productName || 'one of the items'}`,
+          );
+        }
+
+        return {
+          weightGrams: packageData.weightGrams + weight * quantity,
+          packageHeightCm: packageData.packageHeightCm + height * quantity,
+          packageWidthCm: Math.max(packageData.packageWidthCm, width),
+          packageLengthCm: Math.max(packageData.packageLengthCm, length),
+        };
+      },
+      {
+        weightGrams: 0,
+        packageHeightCm: 0,
+        packageWidthCm: 0,
+        packageLengthCm: 0,
+      },
+    );
+
+    const paymentMode: PaymentMode = dto.paymentMethod === 'cod' ? 'COD' : 'Pre-paid';
+    const shippingQuote = await this.shippingService.checkPincode(pincode, {
+      subtotal: Number(cartData.total) || 0,
+      ...shippingPackage,
+      paymentMode,
+    });
+
+    if (!shippingQuote.serviceable) {
+      throw new BadRequestException(
+        shippingQuote.message || 'Delivery is unavailable for this PIN code',
+      );
+    }
+
+    if (dto.paymentMethod === 'cod' && !shippingQuote.codAvailable) {
+      throw new BadRequestException(
+        'Cash on delivery is not available for this PIN code',
+      );
+    }
+
+    const shippingFee = shippingQuote.freeShipping ? 0 : shippingQuote.shippingFee;
     const offerLineSnapshots = cartData.items.map((item) => {
       const quantity = Number(item.quantity) || 0;
       const unitPrice = Number(item.finalPrice ?? item.priceAtTime ?? 0);
@@ -2031,7 +2120,6 @@ export class CustomerService {
       }
 
       const orderNumber = this.generateOrderNumber();
-      const shippingAddress = await this.buildShippingAddress(dto);
       const order = queryRunner.manager.create(Order, {
         orderNumber,
         userId,

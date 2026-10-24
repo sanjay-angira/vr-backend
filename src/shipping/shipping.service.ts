@@ -22,12 +22,43 @@ type DelhiveryPincodeResponse = {
   }>;
 };
 
+type GoogleGeocodeResponse = {
+  status?: string;
+  error_message?: string;
+  results?: Array<{
+    address_components?: Array<{
+      long_name?: string;
+      short_name?: string;
+      types?: string[];
+    }>;
+  }>;
+};
+
+export type ShippingQuote = {
+  pincode: string;
+  serviceable: boolean;
+  shippingFee: number;
+  freeShipping: boolean;
+  prepaidAvailable: boolean;
+  codAvailable: boolean;
+  estimatedDeliveryDate: string | null;
+  city: string | null;
+  message: string;
+};
+
 @Injectable()
 export class ShippingService {
+  private readonly pinPattern = /^\d{6}$/;
+
   constructor(
     private readonly http: HttpService,
     private readonly config: ConfigService,
   ) {}
+
+  normalizePincode(value: string | null | undefined): string {
+    const cleaned = String(value ?? '').replace(/\s+/g, '');
+    return this.pinPattern.test(cleaned) ? cleaned : '';
+  }
 
   private get baseUrl(): string {
     return (
@@ -51,11 +82,215 @@ export class ShippingService {
     };
   }
 
-  async checkPincode(pincode: string) {
-    if (!/^\d{6}$/.test(pincode)) {
+  private get googleApiKey(): string {
+    const key = this.config.get<string>('GOOGLE_MAPS_API_KEY');
+    return typeof key === 'string' && key.trim() ? key.trim() : '';
+  }
+
+  private parseGooglePostalCode(data: GoogleGeocodeResponse): string | null {
+    const results = Array.isArray(data?.results) ? data.results : [];
+
+    for (const result of results) {
+      const components = Array.isArray(result?.address_components)
+        ? result.address_components
+        : [];
+
+      const postalCode = components.find((component) =>
+        Array.isArray(component?.types) && component.types.includes('postal_code'),
+      );
+
+      if (postalCode?.long_name && /^\d{6}$/.test(postalCode.long_name.trim())) {
+        return postalCode.long_name.trim();
+      }
+    }
+
+    return null;
+  }
+
+  async reverseGeocode(
+    latitude: number | string,
+    longitude: number | string,
+  ): Promise<{ pincode: string | null; message: string; city: string | null }> {
+    const parsedLat = Number(latitude);
+    const parsedLng = Number(longitude);
+
+    if (!Number.isFinite(parsedLat) || parsedLat < -90 || parsedLat > 90) {
+      throw new BadRequestException('Latitude must be between -90 and 90 degrees');
+    }
+
+    if (!Number.isFinite(parsedLng) || parsedLng < -180 || parsedLng > 180) {
+      throw new BadRequestException(
+        'Longitude must be between -180 and 180 degrees',
+      );
+    }
+
+    if (!this.googleApiKey) {
+      throw new ServiceUnavailableException(
+        'Google Maps API key is not configured',
+      );
+    }
+
+    try {
+      const { data } = await firstValueFrom(
+        this.http.get<GoogleGeocodeResponse>(
+          'https://maps.googleapis.com/maps/api/geocode/json',
+          {
+            params: {
+              latlng: `${parsedLat},${parsedLng}`,
+              key: this.googleApiKey,
+            },
+            timeout: 8000,
+          },
+        ),
+      );
+
+      if (data?.status === 'OVER_QUERY_LIMIT') {
+        throw new BadGatewayException('Google Maps API quota exceeded');
+      }
+
+      if (data?.status === 'REQUEST_DENIED') {
+        throw new ServiceUnavailableException(
+          'Google Maps API is not configured correctly',
+        );
+      }
+
+      const pincode = this.parseGooglePostalCode(data);
+      if (!pincode) {
+        return {
+          pincode: null,
+          city: null,
+          message:
+            'We could not find a postal code for your current location. Please enter your PIN code manually.',
+        };
+      }
+
+      return {
+        pincode,
+        city: null,
+        message: 'Location matched your current delivery PIN code.',
+      };
+    } catch (error: unknown) {
+      if (
+        error instanceof BadRequestException ||
+        error instanceof ServiceUnavailableException ||
+        error instanceof BadGatewayException
+      ) {
+        throw error;
+      }
+
+      if (axios.isAxiosError(error) && error.response) {
+        throw new BadGatewayException(
+          `Google Maps API returned ${error.response.status}`,
+        );
+      }
+
+      throw new BadGatewayException(
+        'Could not determine your current PIN code from location data',
+      );
+    }
+  }
+
+  async checkPincode(
+    pincode: string,
+    options: {
+      subtotal?: number;
+      weightGrams?: number;
+      packageHeightCm?: number;
+      packageWidthCm?: number;
+      packageLengthCm?: number;
+      paymentMode?: PaymentMode;
+    } = {},
+  ): Promise<ShippingQuote> {
+    const normalizedPin = this.normalizePincode(pincode);
+    if (!normalizedPin) {
       throw new BadRequestException('Enter a valid 6-digit PIN code');
     }
 
+    const serviceability = await this.getServiceability(normalizedPin);
+    const subtotal = Number(options.subtotal ?? 0);
+    const freeShipping = subtotal > 499;
+
+    if (!serviceability.serviceable) {
+      return {
+        ...serviceability,
+        pincode: normalizedPin,
+        shippingFee: 0,
+        freeShipping,
+        estimatedDeliveryDate: null,
+        message:
+          serviceability.message ||
+          'Delivery service is unavailable for this PIN code',
+      };
+    }
+
+    const weightGrams = Number(options.weightGrams ?? 0);
+    let shippingFee = 0;
+
+    if (!freeShipping && Number.isFinite(weightGrams) && weightGrams > 0) {
+      const origin = this.config.get<string>('WAREHOUSE_PINCODE');
+      if (origin && this.pinPattern.test(origin)) {
+        const quote = await this.calculateCarrierRate({
+          deliveryPincode: normalizedPin,
+          weightGrams,
+          packageHeightCm: options.packageHeightCm ?? 0,
+          packageWidthCm: options.packageWidthCm ?? 0,
+          packageLengthCm: options.packageLengthCm ?? 0,
+          paymentMode: options.paymentMode ?? 'Pre-paid',
+          origin,
+        });
+        const quotePayload = (quote as Record<string, unknown> | null) ?? null;
+        shippingFee =
+          Number(
+            quotePayload && typeof quotePayload === 'object'
+              ? quotePayload.total_amount ?? quotePayload.amount ?? 0
+              : 0,
+          ) || 0;
+      }
+    }
+
+    return {
+      ...serviceability,
+      pincode: normalizedPin,
+      shippingFee,
+      freeShipping,
+      estimatedDeliveryDate: null,
+      message: serviceability.message || 'PIN code checked',
+    };
+  }
+
+  async calculateShipping(input: {
+    deliveryPincode: string;
+    weightGrams: number;
+    packageHeightCm: number;
+    packageWidthCm: number;
+    packageLengthCm: number;
+    paymentMode: PaymentMode;
+  }): Promise<unknown> {
+    const origin = this.config.get<string>('WAREHOUSE_PINCODE');
+
+    if (!origin || !this.pinPattern.test(origin)) {
+      throw new ServiceUnavailableException(
+        'Configure a valid warehouse PIN code',
+      );
+    }
+
+    const pincode = this.normalizePincode(input.deliveryPincode);
+    if (!pincode) {
+      throw new BadRequestException('Invalid delivery PIN code');
+    }
+
+    return this.calculateCarrierRate({
+      deliveryPincode: pincode,
+      weightGrams: input.weightGrams,
+      packageHeightCm: input.packageHeightCm,
+      packageWidthCm: input.packageWidthCm,
+      packageLengthCm: input.packageLengthCm,
+      paymentMode: input.paymentMode,
+      origin,
+    });
+  }
+
+  private async getServiceability(pincode: string) {
     try {
       const { data } = await firstValueFrom(
         this.http.get<DelhiveryPincodeResponse>(
@@ -69,14 +304,15 @@ export class ShippingService {
       );
 
       const postalCode = data?.delivery_codes?.[0]?.postal_code;
+      const serviceable = Boolean(
+        postalCode &&
+          postalCode.remarks !== 'Embargo' &&
+          postalCode.pre_paid === 'Y',
+      );
 
       return {
         pincode,
-        serviceable: Boolean(
-          postalCode &&
-          postalCode.remarks !== 'Embargo' &&
-          postalCode.pre_paid === 'Y',
-        ),
+        serviceable,
         prepaidAvailable: postalCode?.pre_paid === 'Y',
         codAvailable: postalCode?.cash === 'Y',
         city: postalCode?.city ?? null,
@@ -92,25 +328,40 @@ export class ShippingService {
     }
   }
 
-  async calculateShipping(input: {
+  private async calculateCarrierRate(input: {
     deliveryPincode: string;
     weightGrams: number;
+    packageHeightCm: number;
+    packageWidthCm: number;
+    packageLengthCm: number;
     paymentMode: PaymentMode;
+    origin?: string;
   }): Promise<unknown> {
-    const origin = this.config.get<string>('WAREHOUSE_PINCODE');
+    const origin = input.origin ?? this.config.get<string>('WAREHOUSE_PINCODE');
 
-    if (!origin || !/^\d{6}$/.test(origin)) {
+    if (!origin || !this.pinPattern.test(origin)) {
       throw new ServiceUnavailableException(
         'Configure a valid warehouse PIN code',
       );
     }
 
-    if (!/^\d{6}$/.test(input.deliveryPincode)) {
+    if (!this.pinPattern.test(input.deliveryPincode)) {
       throw new BadRequestException('Invalid delivery PIN code');
     }
 
     if (!Number.isFinite(input.weightGrams) || input.weightGrams <= 0) {
       throw new BadRequestException('Weight must be greater than zero');
+    }
+
+    if (
+      !Number.isFinite(input.packageHeightCm) ||
+      input.packageHeightCm <= 0 ||
+      !Number.isFinite(input.packageWidthCm) ||
+      input.packageWidthCm <= 0 ||
+      !Number.isFinite(input.packageLengthCm) ||
+      input.packageLengthCm <= 0
+    ) {
+      throw new BadRequestException('Package dimensions must be greater than zero');
     }
 
     try {
@@ -125,6 +376,9 @@ export class ShippingService {
               d_pin: input.deliveryPincode,
               o_pin: origin,
               cgm: input.weightGrams,
+              h: input.packageHeightCm,
+              b: input.packageWidthCm,
+              l: input.packageLengthCm,
               pt: input.paymentMode,
             },
             timeout: 10000,
