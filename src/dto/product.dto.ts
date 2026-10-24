@@ -257,6 +257,11 @@ export class CreateProductDto {
   @IsOptional()
   brandId?: number;
 
+  @Type(() => Number)
+  @IsInt()
+  @IsOptional()
+  warehouseId?: number | null;
+
   @IsNumber()
   @IsOptional()
   category?: number;
@@ -473,6 +478,11 @@ export class UpdateProductDto {
   @Type(() => Number)
   @IsNumber()
   brandId?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  warehouseId?: number | null;
 
   @IsOptional()
   @Type(() => Number)

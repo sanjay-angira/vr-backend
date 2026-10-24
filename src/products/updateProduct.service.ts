@@ -19,6 +19,10 @@ import { Category } from 'src/entities/productCategory/category.entity';
 import { Brand } from 'src/entities/product/brand.entity';
 import { ProductAttribute } from 'src/entities/product/product-attribute.entity';
 import { Attribute } from 'src/entities/product/attribute.entity';
+import {
+  Warehouse,
+  WarehouseRegistrationStatus,
+} from 'src/entities/product/warehouse.entity';
 
 @Injectable()
 export class UpdateProductService {
@@ -33,6 +37,8 @@ export class UpdateProductService {
     private readonly categoryRepo: Repository<Category>,
     @InjectRepository(Brand)
     private readonly brandRepo: Repository<Brand>,
+    @InjectRepository(Warehouse)
+    private readonly warehouseRepo: Repository<Warehouse>,
     @InjectRepository(ProductAttribute)
     private readonly productAttributeRepo: Repository<ProductAttribute>,
     @InjectRepository(Attribute)
@@ -53,6 +59,7 @@ export class UpdateProductService {
       if (updateProductDto.frequentlyBoughtTogether !== undefined) {
         relationsToLoad.push('frequentlyBoughtTogether');
       }
+      relationsToLoad.push('brand', 'warehouse');
 
       const product = await this.productRepo.findOne({
         where: { id },
@@ -93,7 +100,7 @@ export class UpdateProductService {
       }
 
       /* ================= BRAND ================= */
-      const brand: Brand | null = null;
+      let brandId = product.brand?.id;
       if (updateProductDto.brandId) {
         const brand = await this.brandRepo.findOne({
           where: { id: updateProductDto.brandId },
@@ -102,6 +109,47 @@ export class UpdateProductService {
 
         if (!brand) throw new NotFoundException('Brand not found');
         product.brand = brand;
+        brandId = brand.id;
+      } else if (updateProductDto.brandId === null) {
+        product.brand = null;
+        product.warehouse = null;
+        product.warehouseId = null;
+        brandId = undefined;
+      }
+
+      if (updateProductDto.warehouseId !== undefined) {
+        if (updateProductDto.warehouseId === null) {
+          product.warehouse = null;
+          product.warehouseId = null;
+          if (brandId) {
+            throw new BadRequestException(
+              'Select a pickup warehouse for the selected brand',
+            );
+          }
+        } else {
+          const warehouse = await this.warehouseRepo.findOne({
+            where: {
+              id: updateProductDto.warehouseId,
+              brandId,
+              isActive: true,
+              registrationStatus: WarehouseRegistrationStatus.REGISTERED,
+            },
+          });
+          if (!warehouse) {
+            throw new BadRequestException(
+              'Select an active, registered pickup warehouse for this brand',
+            );
+          }
+          product.warehouse = warehouse;
+          product.warehouseId = warehouse.id;
+        }
+      } else if (
+        updateProductDto.brandId !== undefined &&
+        product.warehouse?.brandId !== brandId
+      ) {
+        throw new BadRequestException(
+          'Select a pickup warehouse for the selected brand',
+        );
       }
 
       /* ================= UPDATE PRODUCT OFFERS ================= */
@@ -222,6 +270,7 @@ export class UpdateProductService {
         relations: [
           'category',
           'brand',
+          'warehouse',
           'variants',
           'variants.images',
           'variants.variantAttributes',

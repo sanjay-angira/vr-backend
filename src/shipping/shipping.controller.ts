@@ -14,6 +14,7 @@ export class ShippingController {
     @Query('packageHeightCm') packageHeightCm?: string,
     @Query('packageWidthCm') packageWidthCm?: string,
     @Query('packageLengthCm') packageLengthCm?: string,
+    @Query('variantId') variantId?: string,
     @Query('paymentMode') paymentMode?: string,
   ) {
     const safePaymentMode =
@@ -30,6 +31,8 @@ export class ShippingController {
         packageWidthCm === undefined ? undefined : Number(packageWidthCm),
       packageLengthCm:
         packageLengthCm === undefined ? undefined : Number(packageLengthCm),
+      productVariantId:
+        variantId === undefined ? undefined : Number(variantId),
       paymentMode: safePaymentMode,
     });
 
@@ -62,6 +65,7 @@ export class ShippingController {
     @Query('packageHeightCm') packageHeightCm?: string,
     @Query('packageWidthCm') packageWidthCm?: string,
     @Query('packageLengthCm') packageLengthCm?: string,
+    @Query('variantId') variantId?: string,
     @Query('paymentMode') paymentMode?: string,
   ) {
     if (paymentMode !== 'Pre-paid' && paymentMode !== 'COD') {
@@ -75,6 +79,8 @@ export class ShippingController {
       packageHeightCm: Number(packageHeightCm),
       packageWidthCm: Number(packageWidthCm),
       packageLengthCm: Number(packageLengthCm),
+      productVariantId:
+        variantId === undefined ? undefined : Number(variantId),
       paymentMode: validatedPaymentMode,
     });
 

@@ -15,6 +15,10 @@ import {
 import { Tags } from 'src/entities/product/tags.entity';
 import { Offer } from 'src/entities/product/offer.entity';
 import { Brand } from 'src/entities/product/brand.entity';
+import {
+  Warehouse,
+  WarehouseRegistrationStatus,
+} from 'src/entities/product/warehouse.entity';
 import { ProductAttribute } from 'src/entities/product/product-attribute.entity';
 import { Attribute } from 'src/entities/product/attribute.entity';
 import { AddProductSeoService } from './addProductSeo.service';
@@ -41,6 +45,8 @@ export class AddProductService {
     private readonly categoryRepo: Repository<Category>,
     @InjectRepository(Brand)
     private readonly brandRepo: Repository<Brand>,
+    @InjectRepository(Warehouse)
+    private readonly warehouseRepo: Repository<Warehouse>,
     @InjectRepository(Offer)
     private readonly offerRepo: Repository<Offer>,
     @InjectRepository(Tags)
@@ -77,6 +83,28 @@ export class AddProductService {
         });
 
         if (!brand) throw new NotFoundException('Brand not found');
+      }
+
+      if (createProductDto.warehouseId && !createProductDto.brandId) {
+        throw new BadRequestException(
+          'A brand is required to assign a pickup warehouse',
+        );
+      }
+
+      const warehouse = createProductDto.warehouseId
+        ? await this.warehouseRepo.findOne({
+            where: {
+              id: createProductDto.warehouseId,
+              brandId: createProductDto.brandId,
+              isActive: true,
+              registrationStatus: WarehouseRegistrationStatus.REGISTERED,
+            },
+          })
+        : null;
+      if (createProductDto.brandId && !warehouse) {
+        throw new BadRequestException(
+          'Select an active, registered pickup warehouse for this brand',
+        );
       }
 
       /* ================= OFFERS ================= */
@@ -140,6 +168,7 @@ export class AddProductService {
         publishStatus: createProductDto.publishStatus ?? PublishStatus.DRAFT,
         category: category ?? undefined,
         brand: brand ?? undefined,
+        warehouse: warehouse ?? undefined,
         productOffers: offers,
         frequentlyBoughtTogether: frequentlyBoughtProducts,
       });

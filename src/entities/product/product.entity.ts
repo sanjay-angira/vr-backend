@@ -9,6 +9,7 @@ import {
   UpdateDateColumn,
   ManyToOne,
   OneToOne,
+  JoinColumn,
 } from 'typeorm';
 import { ProductVariant } from './product-variants.entity';
 import { Tags } from './tags.entity';
@@ -21,6 +22,7 @@ import { ProductSeo } from './product-seo.entity';
 import { CmsSection } from '../CMS/cmsSettings.entity';
 import { CategoryAttribute } from '../productCategory/category-attribute.entity';
 import { ProductAttribute } from './product-attribute.entity';
+import { Warehouse } from './warehouse.entity';
 
 export enum PublishStatus {
   DRAFT = 'draft',
@@ -54,7 +56,14 @@ export class Product {
   category!: Category;
 
   @ManyToOne(() => Brand, { eager: true, nullable: true, onDelete: 'CASCADE' })
-  brand!: Brand;
+  brand!: Brand | null;
+
+  @Column({ name: 'warehouseId', type: 'int', nullable: true })
+  warehouseId!: number | null;
+
+  @ManyToOne(() => Warehouse, { nullable: true, onDelete: 'RESTRICT' })
+  @JoinColumn({ name: 'warehouseId' })
+  warehouse!: Warehouse | null;
 
   @OneToMany(() => ProductVariant, (variant) => variant.product, {
     cascade: true,

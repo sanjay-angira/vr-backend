@@ -31,6 +31,7 @@ export class ProductsService {
         .createQueryBuilder('product')
         .leftJoinAndSelect('product.category', 'category')
         .leftJoinAndSelect('product.brand', 'brand')
+        .leftJoinAndSelect('product.warehouse', 'warehouse')
         .leftJoinAndSelect('product.productOffers', 'productOffers');
 
       if (isPageNumberValid || isPageSizeValid) {
@@ -70,6 +71,7 @@ export class ProductsService {
         .leftJoinAndSelect('product.productOffers', 'productOffers')
         .leftJoinAndSelect('product.category', 'category')
         .leftJoinAndSelect('product.brand', 'brand')
+        .leftJoinAndSelect('product.warehouse', 'warehouse')
         .leftJoinAndSelect('product.productTags', 'productTags')
         .leftJoinAndSelect('product.productAttributes', 'productAttributes')
         .leftJoinAndSelect('productAttributes.attribute', 'productAttribute')

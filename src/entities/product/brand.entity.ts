@@ -11,6 +11,7 @@ import {
 import { Category } from '../productCategory/category.entity';
 import { Product } from './product.entity';
 import { Offer } from './offer.entity';
+import { Warehouse } from './warehouse.entity';
 
 @Entity('brands')
 export class Brand {
@@ -57,6 +58,9 @@ export class Brand {
 
   @OneToMany(() => Product, (product) => product.brand)
   products!: Product[];
+
+  @OneToMany(() => Warehouse, (warehouse) => warehouse.brand)
+  warehouses!: Warehouse[];
 
   @CreateDateColumn({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
   createdAt!: Date;

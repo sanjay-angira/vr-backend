@@ -8,6 +8,13 @@ import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
 import axios from 'axios';
 import { firstValueFrom } from 'rxjs';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { ProductVariant } from 'src/entities/product/product-variants.entity';
+import {
+  Warehouse,
+  WarehouseRegistrationStatus,
+} from 'src/entities/product/warehouse.entity';
 
 export type PaymentMode = 'Pre-paid' | 'COD';
 
@@ -44,6 +51,9 @@ export type ShippingQuote = {
   estimatedDeliveryDate: string | null;
   city: string | null;
   message: string;
+  warehouseId?: number;
+  warehouseName?: string;
+  warehousePincode?: string;
 };
 
 @Injectable()
@@ -53,6 +63,10 @@ export class ShippingService {
   constructor(
     private readonly http: HttpService,
     private readonly config: ConfigService,
+    @InjectRepository(ProductVariant)
+    private readonly variantRepository: Repository<ProductVariant>,
+    @InjectRepository(Warehouse)
+    private readonly warehouseRepository: Repository<Warehouse>,
   ) {}
 
   normalizePincode(value: string | null | undefined): string {
@@ -95,11 +109,16 @@ export class ShippingService {
         ? result.address_components
         : [];
 
-      const postalCode = components.find((component) =>
-        Array.isArray(component?.types) && component.types.includes('postal_code'),
+      const postalCode = components.find(
+        (component) =>
+          Array.isArray(component?.types) &&
+          component.types.includes('postal_code'),
       );
 
-      if (postalCode?.long_name && /^\d{6}$/.test(postalCode.long_name.trim())) {
+      if (
+        postalCode?.long_name &&
+        /^\d{6}$/.test(postalCode.long_name.trim())
+      ) {
         return postalCode.long_name.trim();
       }
     }
@@ -115,7 +134,9 @@ export class ShippingService {
     const parsedLng = Number(longitude);
 
     if (!Number.isFinite(parsedLat) || parsedLat < -90 || parsedLat > 90) {
-      throw new BadRequestException('Latitude must be between -90 and 90 degrees');
+      throw new BadRequestException(
+        'Latitude must be between -90 and 90 degrees',
+      );
     }
 
     if (!Number.isFinite(parsedLng) || parsedLng < -180 || parsedLng > 180) {
@@ -198,6 +219,7 @@ export class ShippingService {
       packageHeightCm?: number;
       packageWidthCm?: number;
       packageLengthCm?: number;
+      productVariantId?: number;
       paymentMode?: PaymentMode;
     } = {},
   ): Promise<ShippingQuote> {
@@ -206,6 +228,28 @@ export class ShippingService {
       throw new BadRequestException('Enter a valid 6-digit PIN code');
     }
 
+    const weightGrams = Number(options.weightGrams ?? 0);
+    const packageDimensions = [
+      Number(options.packageHeightCm ?? 0),
+      Number(options.packageWidthCm ?? 0),
+      Number(options.packageLengthCm ?? 0),
+    ];
+    if (
+      options.productVariantId &&
+      (!Number.isFinite(weightGrams) ||
+        weightGrams <= 0 ||
+        packageDimensions.some(
+          (dimension) => !Number.isFinite(dimension) || dimension <= 0,
+        ))
+    ) {
+      throw new BadRequestException(
+        'Product package weight and all dimensions must be greater than zero',
+      );
+    }
+
+    const warehouse = options.productVariantId
+      ? await this.getWarehouseForVariant(options.productVariantId)
+      : null;
     const serviceability = await this.getServiceability(normalizedPin);
     const subtotal = Number(options.subtotal ?? 0);
     const freeShipping = subtotal > 499;
@@ -223,28 +267,29 @@ export class ShippingService {
       };
     }
 
-    const weightGrams = Number(options.weightGrams ?? 0);
     let shippingFee = 0;
 
     if (!freeShipping && Number.isFinite(weightGrams) && weightGrams > 0) {
       const origin = this.config.get<string>('WAREHOUSE_PINCODE');
-      if (origin && this.pinPattern.test(origin)) {
+      const resolvedOrigin = warehouse?.pincode ?? origin;
+      if (resolvedOrigin && this.pinPattern.test(resolvedOrigin)) {
+        const dimensions = {
+          packageHeightCm: Number(options.packageHeightCm ?? 0),
+          packageWidthCm: Number(options.packageWidthCm ?? 0),
+          packageLengthCm: Number(options.packageLengthCm ?? 0),
+        };
         const quote = await this.calculateCarrierRate({
           deliveryPincode: normalizedPin,
           weightGrams,
-          packageHeightCm: options.packageHeightCm ?? 0,
-          packageWidthCm: options.packageWidthCm ?? 0,
-          packageLengthCm: options.packageLengthCm ?? 0,
+          ...dimensions,
           paymentMode: options.paymentMode ?? 'Pre-paid',
-          origin,
+          origin: resolvedOrigin,
         });
-        const quotePayload = (quote as Record<string, unknown> | null) ?? null;
-        shippingFee =
-          Number(
-            quotePayload && typeof quotePayload === 'object'
-              ? quotePayload.total_amount ?? quotePayload.amount ?? 0
-              : 0,
-          ) || 0;
+        const quotePayload = Array.isArray(quote) ? quote[0] : quote;
+        if (quotePayload && typeof quotePayload === 'object') {
+          const amount = quotePayload as Record<string, unknown>;
+          shippingFee = Number(amount.total_amount ?? amount.amount ?? 0) || 0;
+        }
       }
     }
 
@@ -255,7 +300,56 @@ export class ShippingService {
       freeShipping,
       estimatedDeliveryDate: null,
       message: serviceability.message || 'PIN code checked',
+      ...(warehouse
+        ? {
+            warehouseId: warehouse.id,
+            warehouseName: warehouse.name,
+            warehousePincode: warehouse.pincode,
+          }
+        : {}),
     };
+  }
+
+  private async getWarehouseForVariant(
+    variantId: number,
+  ): Promise<Warehouse> {
+    if (!Number.isInteger(variantId) || variantId <= 0) {
+      throw new BadRequestException('A valid product variant is required');
+    }
+    const variant = await this.variantRepository.findOne({
+      where: { id: variantId },
+      relations: ['product', 'product.brand', 'product.warehouse'],
+    });
+    if (!variant?.product?.brand?.id) {
+      throw new ServiceUnavailableException(
+        'This product is not assigned to a brand with a registered dispatch warehouse',
+      );
+    }
+    const assignedWarehouseId = variant.product.warehouseId;
+    const warehouse = assignedWarehouseId
+      ? variant.product.warehouse
+      : await this.warehouseRepository.findOne({
+          where: {
+            brandId: variant.product.brand.id,
+            isDefault: true,
+            isActive: true,
+            registrationStatus: WarehouseRegistrationStatus.REGISTERED,
+          },
+        });
+    if (
+      !warehouse ||
+      warehouse.brandId !== variant.product.brand.id ||
+      !warehouse.isActive ||
+      warehouse.registrationStatus !== WarehouseRegistrationStatus.REGISTERED ||
+      !this.normalizePincode(warehouse.pincode)
+    ) {
+      throw new ServiceUnavailableException(
+        assignedWarehouseId
+          ? 'This product pickup warehouse is not active or registered'
+          : 'This brand has no active, registered default warehouse configured',
+      );
+    }
+    return warehouse;
   }
 
   async calculateShipping(input: {
@@ -264,9 +358,14 @@ export class ShippingService {
     packageHeightCm: number;
     packageWidthCm: number;
     packageLengthCm: number;
+    productVariantId?: number;
     paymentMode: PaymentMode;
   }): Promise<unknown> {
-    const origin = this.config.get<string>('WAREHOUSE_PINCODE');
+    const warehouse = input.productVariantId
+      ? await this.getWarehouseForVariant(input.productVariantId)
+      : null;
+    const origin =
+      warehouse?.pincode ?? this.config.get<string>('WAREHOUSE_PINCODE');
 
     if (!origin || !this.pinPattern.test(origin)) {
       throw new ServiceUnavailableException(
@@ -279,7 +378,7 @@ export class ShippingService {
       throw new BadRequestException('Invalid delivery PIN code');
     }
 
-    return this.calculateCarrierRate({
+    const rate = await this.calculateCarrierRate({
       deliveryPincode: pincode,
       weightGrams: input.weightGrams,
       packageHeightCm: input.packageHeightCm,
@@ -288,6 +387,14 @@ export class ShippingService {
       paymentMode: input.paymentMode,
       origin,
     });
+    return warehouse
+      ? {
+          rate,
+          warehouseId: warehouse.id,
+          warehouseName: warehouse.name,
+          originPincode: warehouse.pincode,
+        }
+      : rate;
   }
 
   private async getServiceability(pincode: string) {
@@ -306,8 +413,8 @@ export class ShippingService {
       const postalCode = data?.delivery_codes?.[0]?.postal_code;
       const serviceable = Boolean(
         postalCode &&
-          postalCode.remarks !== 'Embargo' &&
-          postalCode.pre_paid === 'Y',
+        postalCode.remarks !== 'Embargo' &&
+        postalCode.pre_paid === 'Y',
       );
 
       return {
@@ -361,7 +468,9 @@ export class ShippingService {
       !Number.isFinite(input.packageLengthCm) ||
       input.packageLengthCm <= 0
     ) {
-      throw new BadRequestException('Package dimensions must be greater than zero');
+      throw new BadRequestException(
+        'Package dimensions must be greater than zero',
+      );
     }
 
     try {

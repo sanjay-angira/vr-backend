@@ -28,6 +28,7 @@ import { UploadModule } from './upload/upload.module';
 import { CmsPageModule } from './cms-page/cms-page.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { ShippingModule } from './shipping/shipping.module';
+import { WarehousesModule } from './warehouses/warehouses.module';
 import { renameProductImageUrlColumns } from './commonServices/rename-product-image-url';
 import { migrateCmsImagesOntoParents } from './commonServices/migrate-cms-images-onto-parents';
 import { removeHeaderCms } from './commonServices/remove-header-cms';
@@ -36,6 +37,7 @@ import { migrateProductImagesToVariants } from './commonServices/migrate-product
 import { migrateCategorySeoFields } from './commonServices/migrate-category-seo-fields';
 import { migrateProductVariantPackageDimensions } from './commonServices/migrate-product-variant-package-dimensions';
 import { migrateRequiredVariantSkus } from './commonServices/migrate-required-variant-skus';
+import { migrateWarehouses } from './commonServices/migrate-warehouses';
 
 // Main application module
 @Module({
@@ -85,6 +87,7 @@ import { migrateRequiredVariantSkus } from './commonServices/migrate-required-va
           await migrateCategorySeoFields(prep);
           await migrateProductVariantPackageDimensions(prep);
           await migrateRequiredVariantSkus(prep);
+          await migrateWarehouses(prep);
         } finally {
           await prep.destroy();
         }
@@ -121,6 +124,7 @@ import { migrateRequiredVariantSkus } from './commonServices/migrate-required-va
     CmsPageModule,
     DashboardModule,
     ShippingModule,
+    WarehousesModule,
   ],
   controllers: [],
   providers: [],

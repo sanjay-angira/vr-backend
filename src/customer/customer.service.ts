@@ -45,10 +45,8 @@ import { CustomerAddressService } from './customer-address.service';
 import { Coupon, DiscountType } from 'src/entities/user/coupon.entity';
 import { Offer } from 'src/entities/product/offer.entity';
 import { ApplyCouponDto } from 'src/dto/coupon.dto';
-import {
-  PaymentMode,
-  ShippingService,
-} from 'src/shipping/shipping.service';
+import { PaymentMode, ShippingService } from 'src/shipping/shipping.service';
+import { groupCartItemsByWarehouse } from 'src/shipping/shipping-cart-groups';
 
 type ResolvedCheckoutCoupon = {
   id: number;
@@ -273,6 +271,7 @@ export class CustomerService {
         'product.productOffers',
         'product.brand',
         'product.brand.brandOffers',
+        'product.warehouse',
         'product.category',
         'images',
       ],
@@ -1428,6 +1427,7 @@ export class CustomerService {
             'product.productOffers',
             'product.brand',
             'product.brand.brandOffers',
+            'product.warehouse',
             'product.category',
             'productVariantOffers',
             'images',
@@ -1473,6 +1473,8 @@ export class CustomerService {
           productName: string;
           productSlug: string | null;
           shortDescription: string | null;
+          brandId: number | null;
+          warehouseId: number | null;
         } | null;
       } | null;
     }> = [];
@@ -1556,6 +1558,8 @@ export class CustomerService {
                     productName: variant.product.productName,
                     productSlug: variant.product.productSlug,
                     shortDescription: variant.product.shortDescription,
+                    brandId: variant.product.brand?.id ?? null,
+                    warehouseId: variant.product.warehouseId ?? null,
                   }
                 : null,
             }
@@ -1928,82 +1932,69 @@ export class CustomerService {
     }
 
     const shippingAddress = await this.buildShippingAddress(dto);
-    const pincode = this.shippingService.normalizePincode(shippingAddress.pincode);
+    const pincode = this.shippingService.normalizePincode(
+      shippingAddress.pincode,
+    );
 
     if (!pincode) {
       throw new BadRequestException('A valid delivery PIN code is required');
     }
 
-    const shippingPackage = cartData.items.reduce(
-      (packageData, item) => {
-        const quantity = Number(item.quantity) || 0;
-        const weight = Number(
-          item.variant?.packageWeightGrams ??
-            item.attributesSnapshot?.packageWeightGrams,
-        );
-        const height = Number(
-          item.variant?.packageHeightCm ??
-            item.attributesSnapshot?.packageHeightCm,
-        );
-        const width = Number(
-          item.variant?.packageWidthCm ??
-            item.attributesSnapshot?.packageWidthCm,
-        );
-        const length = Number(
-          item.variant?.packageLengthCm ??
-            item.attributesSnapshot?.packageLengthCm,
-        );
+    const paymentMode: PaymentMode =
+      dto.paymentMethod === 'cod' ? 'COD' : 'Pre-paid';
+    const shipmentGroups = groupCartItemsByWarehouse(cartData.items);
 
-        if (
-          !Number.isFinite(weight) ||
-          weight <= 0 ||
-          !Number.isFinite(height) ||
-          height <= 0 ||
-          !Number.isFinite(width) ||
-          width <= 0 ||
-          !Number.isFinite(length) ||
-          length <= 0
-        ) {
+    const shipmentQuotes = await Promise.all(
+      [...shipmentGroups.values()].map(async (group) => {
+        const { brandId } = group;
+        const quote = await this.shippingService.checkPincode(pincode, {
+          subtotal: Number(cartData.total) || 0,
+          weightGrams: group.weightGrams,
+          packageHeightCm: group.packageHeightCm,
+          packageWidthCm: group.packageWidthCm,
+          packageLengthCm: group.packageLengthCm,
+          productVariantId: group.variantIds[0],
+          paymentMode,
+        });
+        if (!quote.serviceable) {
           throw new BadRequestException(
-            `Package weight or dimensions are missing or invalid for ${item.productName || 'one of the items'}`,
+            quote.message || `Delivery is unavailable for brand ${brandId}`,
           );
         }
-
+        if (dto.paymentMethod === 'cod' && !quote.codAvailable) {
+          throw new BadRequestException(
+            `Cash on delivery is unavailable for brand ${brandId}`,
+          );
+        }
+        if (
+          !quote.warehouseId ||
+          !quote.warehouseName ||
+          !quote.warehousePincode
+        ) {
+          throw new BadRequestException(
+            `No valid registered pickup warehouse is available for brand ${brandId}`,
+          );
+        }
         return {
-          weightGrams: packageData.weightGrams + weight * quantity,
-          packageHeightCm: packageData.packageHeightCm + height * quantity,
-          packageWidthCm: Math.max(packageData.packageWidthCm, width),
-          packageLengthCm: Math.max(packageData.packageLengthCm, length),
+          brandId,
+          quote,
+          snapshot: {
+            brandId,
+            warehouseId: quote.warehouseId,
+            warehouseName: quote.warehouseName,
+            originPincode: quote.warehousePincode,
+            destinationPincode: pincode,
+            shippingFee: quote.freeShipping ? 0 : quote.shippingFee,
+            itemVariationIds: group.variantIds,
+          },
         };
-      },
-      {
-        weightGrams: 0,
-        packageHeightCm: 0,
-        packageWidthCm: 0,
-        packageLengthCm: 0,
-      },
+      }),
     );
-
-    const paymentMode: PaymentMode = dto.paymentMethod === 'cod' ? 'COD' : 'Pre-paid';
-    const shippingQuote = await this.shippingService.checkPincode(pincode, {
-      subtotal: Number(cartData.total) || 0,
-      ...shippingPackage,
-      paymentMode,
-    });
-
-    if (!shippingQuote.serviceable) {
-      throw new BadRequestException(
-        shippingQuote.message || 'Delivery is unavailable for this PIN code',
-      );
-    }
-
-    if (dto.paymentMethod === 'cod' && !shippingQuote.codAvailable) {
-      throw new BadRequestException(
-        'Cash on delivery is not available for this PIN code',
-      );
-    }
-
-    const shippingFee = shippingQuote.freeShipping ? 0 : shippingQuote.shippingFee;
+    const shipmentJson = shipmentQuotes.map((shipment) => shipment.snapshot);
+    const shippingFee = shipmentJson.reduce(
+      (totalFee, shipment) => totalFee + shipment.shippingFee,
+      0,
+    );
     const offerLineSnapshots = cartData.items.map((item) => {
       const quantity = Number(item.quantity) || 0;
       const unitPrice = Number(item.finalPrice ?? item.priceAtTime ?? 0);
@@ -2125,6 +2116,7 @@ export class CustomerService {
         userId,
         sessionId,
         shippingAddress,
+        shipmentJson,
         notes: dto.notes?.trim() || null,
         paymentMethod: dto.paymentMethod,
         paymentStatus: 'pending',

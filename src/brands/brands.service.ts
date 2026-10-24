@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Brand } from '../entities/product/brand.entity';
@@ -9,6 +13,7 @@ import { successResponse } from '../commonServices/response.service';
 import { Offer } from '../entities/product/offer.entity';
 import { Product } from '../entities/product/product.entity';
 import { In } from 'typeorm';
+import { Warehouse } from '../entities/product/warehouse.entity';
 
 @Injectable()
 export class BrandsService {
@@ -19,6 +24,8 @@ export class BrandsService {
     private readonly categoryRepository: Repository<Category>,
     @InjectRepository(Offer)
     private readonly offerRepository: Repository<Offer>,
+    @InjectRepository(Warehouse)
+    private readonly warehouseRepository: Repository<Warehouse>,
   ) {}
 
   async create(createBrandDto: CreateBrandDto) {
@@ -197,6 +204,15 @@ export class BrandsService {
 
       if (!brand) {
         throw new NotFoundException('Brand not found');
+      }
+
+      const hasWarehouses = await this.warehouseRepository.exist({
+        where: { brandId: id },
+      });
+      if (hasWarehouses) {
+        throw new ConflictException(
+          'Brand cannot be deleted while it has warehouse records. Deactivate or reconcile its warehouses first.',
+        );
       }
 
       const deletedProducts = await this.brandRepository.manager.transaction(

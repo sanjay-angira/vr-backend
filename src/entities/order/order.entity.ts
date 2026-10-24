@@ -22,6 +22,16 @@ export type PaymentStatus = 'pending' | 'paid' | 'failed' | 'refunded';
 
 export type PaymentMethod = 'cod' | 'online';
 
+export type OrderShipmentSnapshot = {
+  brandId: number;
+  warehouseId: number;
+  warehouseName: string;
+  originPincode: string;
+  destinationPincode: string;
+  shippingFee: number;
+  itemVariationIds: number[];
+};
+
 @Entity('orders')
 export class Order {
   @PrimaryGeneratedColumn()
@@ -39,6 +49,9 @@ export class Order {
 
   @Column({ type: 'jsonb', nullable: true })
   shippingAddress!: OrderShippingAddress | null;
+
+  @Column({ type: 'jsonb', nullable: true })
+  shipmentJson!: OrderShipmentSnapshot[] | null;
 
   @Column({ type: 'varchar', length: 500, nullable: true })
   notes!: string | null;
