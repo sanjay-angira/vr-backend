@@ -1,4 +1,8 @@
-import { Injectable } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import {
   successResponse,
@@ -39,10 +43,10 @@ export class CustomerAuthService {
   private isProfileCompleted(user: User): boolean {
     return Boolean(
       user.phoneNumberVerified &&
-        user.firstName?.trim() &&
-        user.lastName?.trim() &&
-        user.email?.trim() &&
-        user.emailVerified,
+      user.firstName?.trim() &&
+      user.lastName?.trim() &&
+      user.email?.trim() &&
+      user.emailVerified,
     );
   }
 
@@ -106,6 +110,45 @@ export class CustomerAuthService {
         refreshToken,
       },
       message,
+    );
+  }
+
+  async refreshAccessToken(refreshToken: string) {
+    let claims: { id?: unknown };
+    try {
+      claims = this.userTokenService.verifyRefreshToken(refreshToken);
+    } catch {
+      throw new UnauthorizedException('Invalid or expired refresh token');
+    }
+
+    const userId = Number(claims.id);
+    if (!Number.isSafeInteger(userId) || userId <= 0) {
+      throw new UnauthorizedException('Invalid refresh token');
+    }
+
+    const user = await this.usersRepository.findOne({
+      where: { id: userId, isActive: true, emailVerified: true },
+      relations: ['userRoles', 'userRoles.role'],
+    });
+    if (!user || !this.isProfileCompleted(user)) {
+      throw new UnauthorizedException('Customer account is not active');
+    }
+
+    const isAdministrator = user.userRoles.some((userRole) =>
+      ['admin', 'super admin'].includes(
+        String(userRole.role?.roleName).toLowerCase(),
+      ),
+    );
+    if (isAdministrator) {
+      throw new ForbiddenException('Customer access is required');
+    }
+
+    return successResponse(
+      {
+        accessToken: this.userTokenService.generateAccessToken(user),
+        refreshToken,
+      },
+      'Access token refreshed successfully',
     );
   }
 
@@ -382,7 +425,8 @@ export class CustomerAuthService {
       }
 
       const emailChanged =
-        (user.email || '').trim().toLowerCase() !== email || !user.emailVerified;
+        (user.email || '').trim().toLowerCase() !== email ||
+        !user.emailVerified;
 
       user.firstName = firstName;
       user.lastName = lastName;
@@ -394,7 +438,11 @@ export class CustomerAuthService {
 
       await this.usersRepository.save(user);
 
-      if (!user.firstName?.trim() || !user.lastName?.trim() || !user.email?.trim()) {
+      if (
+        !user.firstName?.trim() ||
+        !user.lastName?.trim() ||
+        !user.email?.trim()
+      ) {
         return errorResponse(
           'Profile is incomplete. First name, last name, and email are required.',
           400,
@@ -433,7 +481,10 @@ export class CustomerAuthService {
       }
 
       if (!user.email?.trim()) {
-        return errorResponse('Email is required before email OTP verification', 400);
+        return errorResponse(
+          'Email is required before email OTP verification',
+          400,
+        );
       }
 
       if (String(user.emailOTP) !== String(otp)) {

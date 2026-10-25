@@ -16,8 +16,10 @@ import { DeleteUploadDto } from '../dto/upload.dto';
 import { successResponse } from 'src/commonServices/response.service';
 import { MAX_OPTIMIZED_IMAGE_BYTES } from './image-optimization.types';
 import { collectOptimizedImageUrls } from 'src/commonServices/optimized-image-columns';
+import { AdminApi } from '../commonServices/admin-api.decorator';
 
 @ApiTags('Upload')
+@AdminApi()
 @Controller('upload')
 export class UploadController {
   constructor(

@@ -37,6 +37,10 @@ import { CustomerWishlistService } from './customer-wishlist.service';
 import { ApplyCouponDto } from 'src/dto/coupon.dto';
 import { AddRecentlyViewedDto } from 'src/dto/recently-viewed.dto';
 import { CustomerRecentlyViewedService } from './customer-recently-viewed.service';
+import { CustomerApi } from 'src/commonServices/admin-api.decorator';
+
+type CustomerRequest = Request & { customerId?: number };
+type AuthenticatedCustomerRequest = Request & { customerId: number };
 
 @ApiTags('Customer App')
 @Controller('customer')
@@ -199,6 +203,7 @@ export class CustomerController {
   }
 
   @Post('add-cart-item')
+  @CustomerApi({ allowGuest: true })
   @ApiOperation({ summary: 'Add item to cart for customer app' })
   @ApiBody({
     type: AddToCartDto,
@@ -214,24 +219,28 @@ export class CustomerController {
       },
     },
   })
-  addCartItem(@Body() dto: AddToCartDto) {
-    const userId = dto.userId || null;
+  addCartItem(@Req() req: CustomerRequest, @Body() dto: AddToCartDto) {
+    const userId = req.customerId || dto.userId || null;
+    if (userId) dto.userId = userId;
     const sessionId = dto.sessionId || null;
     return this.customerService.addCartItem(userId, sessionId, dto);
   }
 
   @Get('get-cart-items')
+  @CustomerApi({ allowGuest: true })
   @ApiOperation({ summary: 'Get cart items for customer app' })
   getCartItems(
+    @Req() req: CustomerRequest,
     @Query('userId') userId?: string,
     @Query('sessionId') sessionId?: string,
   ) {
-    const parsedUserId = userId ? parseInt(userId) : null;
+    const parsedUserId = req.customerId || (userId ? parseInt(userId) : null);
     const sessionIdValue = sessionId || null;
     return this.customerService.getCartItems(parsedUserId, sessionIdValue);
   }
 
   @Put('update-cart-item')
+  @CustomerApi({ allowGuest: true })
   @ApiOperation({ summary: 'Update cart item for customer app' })
   @ApiBody({
     type: UpdateCartDto,
@@ -247,11 +256,13 @@ export class CustomerController {
       },
     },
   })
-  updateCartItem(@Body() dto: UpdateCartDto) {
+  updateCartItem(@Req() req: CustomerRequest, @Body() dto: UpdateCartDto) {
+    if (req.customerId) dto.userId = req.customerId;
     return this.customerService.updateCartItem(dto);
   }
 
   @Delete('remove-cart-item/:id')
+  @CustomerApi({ allowGuest: true })
   @ApiOperation({ summary: 'Remove item from cart for customer app' })
   @ApiParam({ name: 'id', required: true, type: Number, example: 1 })
   @ApiQuery({
@@ -261,13 +272,21 @@ export class CustomerController {
     example: 'abc123-session-id',
   })
   removeCartItem(
+    @Req() req: CustomerRequest,
     @Param('id') id: number,
+    @Query('userId') userId?: string,
     @Query('sessionId') sessionId?: string,
   ) {
-    return this.customerService.removeCartItem(id, sessionId || null);
+    const parsedUserId = req.customerId || (userId ? parseInt(userId, 10) : null);
+    return this.customerService.removeCartItem(
+      id,
+      sessionId || null,
+      parsedUserId,
+    );
   }
 
   @Delete('clear-cart')
+  @CustomerApi({ allowGuest: true })
   @ApiOperation({ summary: 'Clear cart for customer app' })
   @ApiQuery({ name: 'userId', required: false, type: String, example: '1' })
   @ApiQuery({
@@ -277,155 +296,191 @@ export class CustomerController {
     example: 'abc123-session-id',
   })
   clearCart(
+    @Req() req: CustomerRequest,
     @Query('userId') userId?: string,
     @Query('sessionId') sessionId?: string,
   ) {
-    const parsedUserId = userId ? parseInt(userId) : null;
+    const parsedUserId = req.customerId || (userId ? parseInt(userId) : null);
     return this.customerService.clearCart(parsedUserId, sessionId || null);
   }
 
   @Get('cart-count')
+  @CustomerApi({ allowGuest: true })
   @ApiOperation({ summary: 'Get cart item count for customer app' })
   @ApiQuery({ name: 'userId', required: false, type: String, example: '1' })
   getCartCount(
+    @Req() req: CustomerRequest,
     @Query('userId') userId?: string,
     @Query('sessionId') sessionId?: string,
   ) {
-    const parsedUserId = userId ? parseInt(userId) : null;
+    const parsedUserId = req.customerId || (userId ? parseInt(userId) : null);
     return this.customerService.getCartCount(parsedUserId, sessionId || null);
   }
 
   @Get('addresses')
+  @CustomerApi()
   @ApiOperation({ summary: 'List saved delivery addresses for a user' })
-  @ApiQuery({ name: 'userId', required: true, type: String, example: '1' })
-  listAddresses(@Query('userId') userId?: string) {
-    const parsedUserId = userId ? parseInt(userId, 10) : NaN;
-    return this.customerAddressService.listAddresses(parsedUserId);
+  @ApiQuery({ name: 'userId', required: false, type: String, example: '1' })
+  listAddresses(@Req() req: AuthenticatedCustomerRequest) {
+    return this.customerAddressService.listAddresses(req.customerId);
   }
 
   @Post('addresses')
+  @CustomerApi()
   @ApiOperation({
     summary:
       'Create a saved delivery address (supports relative name / phone / email)',
   })
   @ApiBody({ type: CreateUserAddressDto })
-  createAddress(@Body() dto: CreateUserAddressDto) {
+  createAddress(
+    @Req() req: AuthenticatedCustomerRequest,
+    @Body() dto: CreateUserAddressDto,
+  ) {
+    dto.userId = req.customerId;
     return this.customerAddressService.createAddress(dto);
   }
 
   @Put('addresses/:id')
+  @CustomerApi()
   @ApiOperation({ summary: 'Update a saved delivery address' })
   @ApiParam({ name: 'id', required: true, type: Number })
   @ApiBody({ type: UpdateUserAddressDto })
-  updateAddress(@Param('id') id: string, @Body() dto: UpdateUserAddressDto) {
+  updateAddress(
+    @Req() req: AuthenticatedCustomerRequest,
+    @Param('id') id: string,
+    @Body() dto: UpdateUserAddressDto,
+  ) {
+    dto.userId = req.customerId;
     return this.customerAddressService.updateAddress(parseInt(id, 10), dto);
   }
 
   @Delete('addresses/:id')
+  @CustomerApi()
   @ApiOperation({ summary: 'Delete a saved delivery address' })
   @ApiParam({ name: 'id', required: true, type: Number })
-  @ApiQuery({ name: 'userId', required: true, type: String })
-  deleteAddress(@Param('id') id: string, @Query('userId') userId?: string) {
-    const parsedUserId = userId ? parseInt(userId, 10) : NaN;
+  @ApiQuery({ name: 'userId', required: false, type: String })
+  deleteAddress(
+    @Req() req: AuthenticatedCustomerRequest,
+    @Param('id') id: string,
+  ) {
     return this.customerAddressService.deleteAddress(
       parseInt(id, 10),
-      parsedUserId,
+      req.customerId,
     );
   }
 
   @Put('addresses/:id/default')
+  @CustomerApi()
   @ApiOperation({ summary: 'Set a saved address as default' })
   @ApiParam({ name: 'id', required: true, type: Number })
-  @ApiQuery({ name: 'userId', required: true, type: String })
-  setDefaultAddress(@Param('id') id: string, @Query('userId') userId?: string) {
-    const parsedUserId = userId ? parseInt(userId, 10) : NaN;
+  @ApiQuery({ name: 'userId', required: false, type: String })
+  setDefaultAddress(
+    @Req() req: AuthenticatedCustomerRequest,
+    @Param('id') id: string,
+  ) {
     return this.customerAddressService.setDefaultAddress(
       parseInt(id, 10),
-      parsedUserId,
+      req.customerId,
     );
   }
 
   @Get('wishlist')
+  @CustomerApi()
   @ApiOperation({ summary: 'List wishlist items for a logged-in customer' })
-  @ApiQuery({ name: 'userId', required: true, type: String, example: '1' })
-  listWishlist(@Query('userId') userId?: string) {
-    const parsedUserId = userId ? parseInt(userId, 10) : NaN;
-    return this.customerWishlistService.listWishlist(parsedUserId);
+  @ApiQuery({ name: 'userId', required: false, type: String, example: '1' })
+  listWishlist(@Req() req: AuthenticatedCustomerRequest) {
+    return this.customerWishlistService.listWishlist(req.customerId);
   }
 
   @Get('wishlist/ids')
+  @CustomerApi()
   @ApiOperation({
     summary: 'List wishlist variation ids (for heart filled state)',
   })
-  @ApiQuery({ name: 'userId', required: true, type: String, example: '1' })
-  listWishlistIds(@Query('userId') userId?: string) {
-    const parsedUserId = userId ? parseInt(userId, 10) : NaN;
-    return this.customerWishlistService.listWishlistIds(parsedUserId);
+  @ApiQuery({ name: 'userId', required: false, type: String, example: '1' })
+  listWishlistIds(@Req() req: AuthenticatedCustomerRequest) {
+    return this.customerWishlistService.listWishlistIds(req.customerId);
   }
 
   @Get('wishlist/count')
+  @CustomerApi()
   @ApiOperation({ summary: 'Get wishlist item count' })
-  @ApiQuery({ name: 'userId', required: true, type: String, example: '1' })
-  getWishlistCount(@Query('userId') userId?: string) {
-    const parsedUserId = userId ? parseInt(userId, 10) : NaN;
-    return this.customerWishlistService.getWishlistCount(parsedUserId);
+  @ApiQuery({ name: 'userId', required: false, type: String, example: '1' })
+  getWishlistCount(@Req() req: AuthenticatedCustomerRequest) {
+    return this.customerWishlistService.getWishlistCount(req.customerId);
   }
 
   @Post('wishlist')
+  @CustomerApi()
   @ApiOperation({ summary: 'Add a product variant to wishlist (idempotent)' })
   @ApiBody({ type: WishlistMutationDto })
-  addToWishlist(@Body() dto: WishlistMutationDto) {
+  addToWishlist(
+    @Req() req: AuthenticatedCustomerRequest,
+    @Body() dto: WishlistMutationDto,
+  ) {
+    dto.userId = req.customerId;
     return this.customerWishlistService.addToWishlist(dto);
   }
 
   @Post('wishlist/toggle')
+  @CustomerApi()
   @ApiOperation({ summary: 'Toggle a product variant in the wishlist' })
   @ApiBody({ type: WishlistMutationDto })
-  toggleWishlist(@Body() dto: WishlistMutationDto) {
+  toggleWishlist(
+    @Req() req: AuthenticatedCustomerRequest,
+    @Body() dto: WishlistMutationDto,
+  ) {
+    dto.userId = req.customerId;
     return this.customerWishlistService.toggleWishlist(dto);
   }
 
   @Delete('wishlist/by-variation/:variationId')
+  @CustomerApi()
   @ApiOperation({ summary: 'Remove a wishlist item by variation id' })
   @ApiParam({ name: 'variationId', required: true, type: Number })
-  @ApiQuery({ name: 'userId', required: true, type: String })
+  @ApiQuery({ name: 'userId', required: false, type: String })
   removeWishlistByVariation(
+    @Req() req: AuthenticatedCustomerRequest,
     @Param('variationId') variationId: string,
-    @Query('userId') userId?: string,
   ) {
-    const parsedUserId = userId ? parseInt(userId, 10) : NaN;
     return this.customerWishlistService.removeByVariation(
       parseInt(variationId, 10),
-      parsedUserId,
+      req.customerId,
     );
   }
 
   @Delete('wishlist/:id')
+  @CustomerApi()
   @ApiOperation({ summary: 'Remove a wishlist item by wishlist row id' })
   @ApiParam({ name: 'id', required: true, type: Number })
-  @ApiQuery({ name: 'userId', required: true, type: String })
+  @ApiQuery({ name: 'userId', required: false, type: String })
   removeWishlistItem(
+    @Req() req: AuthenticatedCustomerRequest,
     @Param('id') id: string,
-    @Query('userId') userId?: string,
   ) {
-    const parsedUserId = userId ? parseInt(userId, 10) : NaN;
     return this.customerWishlistService.removeWishlistItem(
       parseInt(id, 10),
-      parsedUserId,
+      req.customerId,
     );
   }
 
   @Post('recently-viewed')
+  @CustomerApi({ allowGuest: true })
   @ApiOperation({
     summary:
       'Record recently viewed product(s) for guest or logged-in customer',
   })
   @ApiBody({ type: AddRecentlyViewedDto })
-  addRecentlyViewed(@Body() dto: AddRecentlyViewedDto) {
+  addRecentlyViewed(
+    @Req() req: CustomerRequest,
+    @Body() dto: AddRecentlyViewedDto,
+  ) {
+    if (req.customerId) dto.userId = req.customerId;
     return this.customerRecentlyViewedService.addRecentlyViewed(dto);
   }
 
   @Get('recently-viewed')
+  @CustomerApi({ allowGuest: true })
   @ApiOperation({
     summary: 'List recently viewed products by userId and/or sessionId',
   })
@@ -433,35 +488,45 @@ export class CustomerController {
   @ApiQuery({ name: 'sessionId', required: false, type: String })
   @ApiQuery({ name: 'limit', required: false, type: Number })
   listRecentlyViewed(
+    @Req() req: CustomerRequest,
     @Query('userId') userId?: string,
     @Query('sessionId') sessionId?: string,
     @Query('limit') limit?: string,
   ) {
     return this.customerRecentlyViewedService.listRecentlyViewed(
-      userId,
+      req.customerId ? String(req.customerId) : userId,
       sessionId,
       limit,
     );
   }
 
   @Post('apply-coupon')
+  @CustomerApi({ allowGuest: true })
   @ApiOperation({ summary: 'Apply a coupon code on cart/checkout' })
   @ApiBody({ type: ApplyCouponDto })
-  applyCoupon(@Body() dto: ApplyCouponDto) {
+  applyCoupon(@Req() req: CustomerRequest, @Body() dto: ApplyCouponDto) {
+    if (req.customerId) dto.userId = req.customerId;
     return this.customerService.applyCoupon(dto);
   }
 
   @Post('checkout')
+  @CustomerApi({ allowGuest: true })
   @ApiOperation({ summary: 'Place order from cart (COD / Razorpay online)' })
   @ApiBody({ type: CheckoutDto })
-  placeOrder(@Body() dto: CheckoutDto) {
+  placeOrder(@Req() req: CustomerRequest, @Body() dto: CheckoutDto) {
+    if (req.customerId) dto.userId = req.customerId;
     return this.customerService.placeOrder(dto);
   }
 
   @Post('payments/razorpay/verify')
+  @CustomerApi({ allowGuest: true })
   @ApiOperation({ summary: 'Verify Razorpay payment after checkout success' })
   @ApiBody({ type: VerifyRazorpayPaymentDto })
-  verifyRazorpayPayment(@Body() dto: VerifyRazorpayPaymentDto) {
+  verifyRazorpayPayment(
+    @Req() req: CustomerRequest,
+    @Body() dto: VerifyRazorpayPaymentDto,
+  ) {
+    if (req.customerId) dto.userId = req.customerId;
     return this.customerService.verifyRazorpayPayment(dto);
   }
 
@@ -483,24 +548,26 @@ export class CustomerController {
   }
 
   @Get('orders')
+  @CustomerApi()
   @ApiOperation({ summary: 'List orders for a logged-in customer' })
-  @ApiQuery({ name: 'userId', required: true, type: String, example: '1' })
-  getUserOrders(@Query('userId') userId?: string) {
-    const parsedUserId = userId ? parseInt(userId, 10) : NaN;
-    return this.customerService.getUserOrders(parsedUserId);
+  @ApiQuery({ name: 'userId', required: false, type: String, example: '1' })
+  getUserOrders(@Req() req: AuthenticatedCustomerRequest) {
+    return this.customerService.getUserOrders(req.customerId);
   }
 
   @Get('order/:orderNumber')
+  @CustomerApi({ allowGuest: true })
   @ApiOperation({ summary: 'Get order details by order number' })
   @ApiParam({ name: 'orderNumber', required: true, type: String })
   @ApiQuery({ name: 'userId', required: false, type: String })
   @ApiQuery({ name: 'sessionId', required: false, type: String })
   getOrderByNumber(
+    @Req() req: CustomerRequest,
     @Param('orderNumber') orderNumber: string,
     @Query('userId') userId?: string,
     @Query('sessionId') sessionId?: string,
   ) {
-    const parsedUserId = userId ? parseInt(userId) : null;
+    const parsedUserId = req.customerId || (userId ? parseInt(userId, 10) : null);
     return this.customerService.getOrderByNumber(
       orderNumber,
       parsedUserId,
@@ -509,14 +576,14 @@ export class CustomerController {
   }
 
   @Post('reviews')
+  @CustomerApi()
   @ApiOperation({ summary: 'Submit a product review (pending approval)' })
   @ApiBody({
     schema: {
       type: 'object',
-      required: ['productId', 'userId', 'rating', 'comment'],
+      required: ['productId', 'rating', 'comment'],
       properties: {
         productId: { type: 'number', example: 1 },
-        userId: { type: 'number', example: 1 },
         rating: { type: 'number', example: 5 },
         comment: {
           type: 'string',
@@ -526,6 +593,7 @@ export class CustomerController {
     },
   })
   createReview(
+    @Req() req: AuthenticatedCustomerRequest,
     @Body()
     body: {
       productId?: number;
@@ -536,7 +604,7 @@ export class CustomerController {
   ) {
     return this.customerService.createCustomerReview({
       productId: Number(body.productId),
-      userId: Number(body.userId),
+      userId: req.customerId,
       rating: Number(body.rating),
       comment: String(body.comment || ''),
     });

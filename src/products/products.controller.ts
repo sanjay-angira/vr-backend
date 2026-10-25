@@ -24,8 +24,10 @@ import {
 } from 'src/dto/product.dto';
 import { AddProductService } from './addProduct.service';
 import { UpdateProductService } from './updateProduct.service';
+import { AdminApi } from '../commonServices/admin-api.decorator';
 
 @ApiTags('Products')
+@AdminApi()
 @Controller('products')
 export class ProductsController {
   constructor(

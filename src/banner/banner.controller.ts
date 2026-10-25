@@ -13,7 +13,9 @@ import { BannerService } from './banner.service';
 import { CreateBannerDto } from '../dto/banner.dto';
 import { UpdateBannerDto } from '../dto/banner.dto';
 import { ApiBody, ApiOperation, ApiParam } from '@nestjs/swagger';
+import { AdminApi } from '../commonServices/admin-api.decorator';
 
+@AdminApi()
 @Controller('banners')
 export class BannerController {
   constructor(private readonly bannerService: BannerService) {}

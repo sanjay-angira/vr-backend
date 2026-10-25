@@ -1577,6 +1577,10 @@ export class CustomerService {
   }
 
   async updateCartItem(dto: UpdateCartDto) {
+    if (!dto.userId && !dto.sessionId) {
+      throw new BadRequestException('userId or sessionId is required');
+    }
+
     const item = await this.cartItemRepository.findOne({
       where: { id: dto.cartItemId },
       relations: ['cart', 'variant'],
@@ -1584,11 +1588,14 @@ export class CustomerService {
 
     if (!item) throw new NotFoundException('Cart item not found');
 
-    if (
-      dto.sessionId &&
-      item.cart?.sessionId &&
-      item.cart.sessionId !== dto.sessionId
-    ) {
+    if (dto.userId && item.cart?.userId !== dto.userId) {
+      throw new BadRequestException('Unauthorized');
+    }
+    if (!dto.userId && item.cart?.userId) {
+      throw new BadRequestException('Unauthorized');
+    }
+
+    if (dto.sessionId && item.cart?.sessionId !== dto.sessionId) {
       throw new BadRequestException('Unauthorized');
     }
 
@@ -2266,6 +2273,8 @@ export class CustomerService {
       throw new NotFoundException('Order not found');
     }
 
+    this.assertOrderIdentity(order, dto.userId, dto.sessionId);
+
     if (order.paymentMethod !== 'online') {
       throw new BadRequestException('Order is not an online payment order');
     }
@@ -2413,17 +2422,7 @@ export class CustomerService {
       throw new NotFoundException('Order not found');
     }
 
-    if (userId && order.userId && order.userId !== userId) {
-      throw new BadRequestException('Unauthorized');
-    }
-    if (
-      !userId &&
-      sessionId &&
-      order.sessionId &&
-      order.sessionId !== sessionId
-    ) {
-      throw new BadRequestException('Unauthorized');
-    }
+    this.assertOrderIdentity(order, userId, sessionId);
 
     return successResponse(
       this.mapOrderResponse(order, order.items || []),
@@ -2431,8 +2430,28 @@ export class CustomerService {
     );
   }
 
+  private assertOrderIdentity(
+    order: Order,
+    userId?: number | null,
+    sessionId?: string | null,
+  ) {
+    if (order.userId) {
+      if (!userId || order.userId !== userId) {
+        throw new BadRequestException('Unauthorized');
+      }
+      return;
+    }
+    if (!sessionId || !order.sessionId || order.sessionId !== sessionId) {
+      throw new BadRequestException('Unauthorized');
+    }
+  }
+
   // ❌ Remove Item
-  async removeCartItem(cartItemId: number, sessionId: string | null = null) {
+  async removeCartItem(
+    cartItemId: number,
+    sessionId: string | null = null,
+    userId: number | null = null,
+  ) {
     const item = await this.cartItemRepository.findOne({
       where: { id: cartItemId },
       relations: ['cart'],
@@ -2442,8 +2461,13 @@ export class CustomerService {
       throw new NotFoundException('Cart item not found');
     }
 
-    // Verify ownership if sessionId is provided
-    if (sessionId && item.cart.sessionId !== sessionId) {
+    if (userId && item.cart.userId !== userId) {
+      throw new BadRequestException('Unauthorized');
+    }
+    if (!userId && (!sessionId || item.cart.sessionId !== sessionId)) {
+      throw new BadRequestException('Unauthorized');
+    }
+    if (!userId && item.cart.userId) {
       throw new BadRequestException('Unauthorized');
     }
 
@@ -2453,6 +2477,9 @@ export class CustomerService {
 
   // 🧹 Clear Cart
   async clearCart(userId: number | null, sessionId: string | null) {
+    if (!userId && !sessionId) {
+      throw new BadRequestException('userId or sessionId is required');
+    }
     const whereCondition = userId ? { userId } : { sessionId };
     const cart = await this.cartRepository.findOne({
       where: whereCondition as any,

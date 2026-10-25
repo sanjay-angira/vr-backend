@@ -17,6 +17,7 @@ import {
 } from '@nestjs/swagger';
 import {
   ChangePasswordDto,
+  RefreshTokenDto,
   SendOtpDto,
   VerifyOtpDto,
   SignInDto,
@@ -42,6 +43,12 @@ export class AuthController {
   })
   async login(@Body() signInDto: SignInDto) {
     return this.authService.login(signInDto);
+  }
+
+  @Post('refresh-token')
+  @ApiBody({ type: RefreshTokenDto })
+  async refreshToken(@Body() dto: RefreshTokenDto) {
+    return this.authService.refreshAccessToken(dto.refreshToken);
   }
 
   @Get('checkEmailExists/:email')

@@ -81,6 +81,27 @@ export class CmsPageService {
     return successResponse({ rows, count }, 'CMS pages retrieved successfully');
   }
 
+  async findPublic(query: CmsPageQueryDto) {
+    const pageNumber = Math.max(1, Number(query.pageNumber) || 1);
+    const pageSize = Math.min(100, Math.max(1, Number(query.pageSize) || 100));
+    const [rows, count] = await this.cmsPageRepository
+      .createQueryBuilder('cmsPage')
+      .select([
+        'cmsPage.id',
+        'cmsPage.title',
+        'cmsPage.slug',
+        'cmsPage.type',
+        'cmsPage.isActive',
+      ])
+      .where('cmsPage.isActive = :isActive', { isActive: true })
+      .orderBy('cmsPage.id', 'ASC')
+      .skip((pageNumber - 1) * pageSize)
+      .take(pageSize)
+      .getManyAndCount();
+
+    return successResponse({ rows, count }, 'CMS pages retrieved successfully');
+  }
+
   async findOne(id: number) {
     const page = await this.cmsPageRepository.findOne({ where: { id } });
     if (!page) {

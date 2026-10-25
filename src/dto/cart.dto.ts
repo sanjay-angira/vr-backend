@@ -11,6 +11,10 @@ export class UpdateCartDto {
   quantity!: number;
 
   @IsOptional()
+  @IsNumber()
+  userId?: number;
+
+  @IsOptional()
   @IsString()
   sessionId?: string;
 }

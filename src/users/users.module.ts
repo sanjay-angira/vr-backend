@@ -1,6 +1,5 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { JwtModule } from '@nestjs/jwt';
 import { UsersController } from './users.controller';
 import { UsersService } from './users.service';
 import { User } from '../entities/user/user.entity';
@@ -18,10 +17,6 @@ import { UserPermissionsService } from 'src/permissions/user-permissions.service
   imports: [
     TypeOrmModule.forFeature([User, Role, UserRole, Modules, Permissions]),
     CommonModule,
-    JwtModule.register({
-      secret: 'your_jwt_secret',
-      signOptions: { expiresIn: '1d' },
-    }),
   ],
   controllers: [UsersController],
   providers: [

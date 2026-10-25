@@ -26,8 +26,10 @@ import {
   OfferResponseDto,
 } from '../dto/offer.dto';
 import { PaginationDto } from '../dto/common.dto';
+import { AdminApi } from '../commonServices/admin-api.decorator';
 
 @ApiTags('Offers')
+@AdminApi()
 @Controller('offers')
 export class OffersController {
   constructor(private readonly offersService: OffersService) {}

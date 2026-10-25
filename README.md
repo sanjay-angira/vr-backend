@@ -31,6 +31,13 @@
 $ npm install
 ```
 
+## Configuration
+
+Create a local `.env` from `.env.example` and set `JWT_SECRET` to a strong,
+private random value. The API uses it to sign and verify access tokens; do not
+commit the local `.env` file. Changing the secret invalidates previously issued
+tokens, so keep it consistent across backend instances.
+
 ## Compile and run the project
 
 ```bash

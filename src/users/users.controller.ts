@@ -20,8 +20,10 @@ import {
   ApiOperation,
 } from '@nestjs/swagger';
 import { PaginationDto } from '../dto/common.dto';
+import { AdminApi } from '../commonServices/admin-api.decorator';
 
 @ApiTags('users')
+@AdminApi()
 @Controller('users')
 export class UsersController {
   constructor(private usersService: UsersService) {}

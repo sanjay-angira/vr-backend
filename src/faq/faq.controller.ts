@@ -21,8 +21,10 @@ import {
   ApiParam,
 } from '@nestjs/swagger';
 import { IdDto, PaginationDto } from '../dto/common.dto';
+import { AdminApi, PublicApi } from '../commonServices/admin-api.decorator';
 
 @ApiTags('FAQ')
+@AdminApi()
 @Controller('faqs')
 export class FaqController {
   constructor(private readonly faqService: FaqService) {}
@@ -68,6 +70,7 @@ export class FaqController {
   }
 
   @Get('product/:productId')
+  @PublicApi()
   @ApiOperation({ summary: 'Get all FAQs by product ID' })
   @ApiParam({ name: 'productId', required: true, type: Number })
   findByProductId(@Param('productId', ParseIntPipe) productId: number) {

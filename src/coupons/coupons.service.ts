@@ -132,6 +132,35 @@ export class CouponsService {
     }
   }
 
+  async findPublic(paginationDto: PaginationDto) {
+    const pageNumber = Math.max(1, Number(paginationDto.pageNumber) || 1);
+    const pageSize = Math.min(100, Math.max(1, Number(paginationDto.pageSize) || 50));
+    const [rows, count] = await this.couponRepository
+      .createQueryBuilder('coupon')
+      .select([
+        'coupon.id',
+        'coupon.couponCode',
+        'coupon.image',
+        'coupon.discountType',
+        'coupon.discountValue',
+        'coupon.startDate',
+        'coupon.endDate',
+      ])
+      .where('coupon.isDeleted = :isDeleted', { isDeleted: false })
+      .andWhere('coupon.isActive = :isActive', { isActive: true })
+      .andWhere('coupon.isUserSpecific = :isUserSpecific', {
+        isUserSpecific: false,
+      })
+      .andWhere('coupon.startDate <= CURRENT_DATE')
+      .andWhere('coupon.endDate >= CURRENT_DATE')
+      .orderBy('coupon.discountValue', 'DESC')
+      .skip((pageNumber - 1) * pageSize)
+      .take(pageSize)
+      .getManyAndCount();
+
+    return successResponse({ rows, count }, 'Public coupons retrieved successfully');
+  }
+
   async findOne(idDto: IdDto) {
     try {
       const id = Number(idDto.id);

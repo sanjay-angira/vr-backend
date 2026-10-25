@@ -7,8 +7,10 @@ import {
 } from '@nestjs/swagger';
 import { PaginationDto } from 'src/dto/common.dto';
 import { OrdersService } from './orders.service';
+import { AdminApi } from '../commonServices/admin-api.decorator';
 
 @ApiTags('Orders')
+@AdminApi()
 @Controller('orders')
 export class OrdersController {
   constructor(private readonly ordersService: OrdersService) {}

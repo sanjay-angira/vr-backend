@@ -20,8 +20,10 @@ import {
   ReorderCmsDto,
   UpdateCmsSectionDto,
 } from '../dto/cms-section.dto';
+import { AdminApi } from '../commonServices/admin-api.decorator';
 
 @ApiTags('CMS Sections')
+@AdminApi()
 @Controller('cms-sections')
 export class CmsSectionController {
   constructor(private readonly cmsSectionService: CmsSectionService) {}

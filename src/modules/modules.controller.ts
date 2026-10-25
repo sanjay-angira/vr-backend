@@ -28,8 +28,10 @@ import {
   ApiParam,
 } from '@nestjs/swagger';
 import { PaginationDto } from '../dto/common.dto';
+import { AdminApi } from '../commonServices/admin-api.decorator';
 
 @ApiTags('modules')
+@AdminApi()
 @Controller('modules')
 export class ModulesController {
   constructor(private modulesService: ModulesService) {}

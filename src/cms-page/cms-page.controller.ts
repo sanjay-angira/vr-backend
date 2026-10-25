@@ -16,8 +16,10 @@ import {
   CmsPageQueryDto,
   UpdateCmsPageDto,
 } from '../dto/cms-page.dto';
+import { AdminApi, PublicApi } from '../commonServices/admin-api.decorator';
 
 @ApiTags('CMS Pages')
+@AdminApi()
 @Controller('cms-pages')
 export class CmsPageController {
   constructor(private readonly cmsPageService: CmsPageService) {}
@@ -34,7 +36,15 @@ export class CmsPageController {
     return this.cmsPageService.findAll(query);
   }
 
+  @Get('public')
+  @PublicApi()
+  @ApiOperation({ summary: 'Get active CMS page summaries for the storefront' })
+  findPublic(@Query() query: CmsPageQueryDto) {
+    return this.cmsPageService.findPublic(query);
+  }
+
   @Get('slug/:slug')
+  @PublicApi()
   @ApiOperation({ summary: 'Get CMS page by slug' })
   @ApiParam({ name: 'slug', type: String })
   findBySlug(@Param('slug') slug: string) {

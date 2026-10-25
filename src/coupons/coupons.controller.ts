@@ -19,8 +19,10 @@ import {
   ApiParam,
 } from '@nestjs/swagger';
 import { IdDto, PaginationDto } from '../dto/common.dto';
+import { AdminApi, PublicApi } from '../commonServices/admin-api.decorator';
 
 @ApiTags('Coupons')
+@AdminApi()
 @Controller('coupons')
 export class CouponsController {
   constructor(private readonly couponsService: CouponsService) {}
@@ -59,6 +61,13 @@ export class CouponsController {
   @ApiQuery({ name: 'order', required: false, type: String })
   findAll(@Query() paginationDto: PaginationDto) {
     return this.couponsService.findAll(paginationDto);
+  }
+
+  @Get('public')
+  @PublicApi()
+  @ApiOperation({ summary: 'Get active public coupons for the storefront' })
+  findPublic(@Query() paginationDto: PaginationDto) {
+    return this.couponsService.findPublic(paginationDto);
   }
 
   @Get('code/:couponCode')

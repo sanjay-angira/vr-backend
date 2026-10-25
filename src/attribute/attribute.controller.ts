@@ -17,8 +17,10 @@ import {
   UpdateAttributeDto,
 } from '../dto/attribute.dto';
 import { ApiBody, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
+import { AdminApi } from '../commonServices/admin-api.decorator';
 
 @ApiTags('Attributes')
+@AdminApi()
 @Controller('attributes')
 export class AttributeController {
   constructor(private readonly attributeService: AttributeService) {}

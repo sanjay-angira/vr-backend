@@ -22,8 +22,10 @@ import {
   UpdateProductTagDto,
 } from '../dto/product-tag.dto';
 import { PaginationDto } from '../dto/common.dto';
+import { AdminApi } from '../commonServices/admin-api.decorator';
 
 @ApiTags('Product Tags')
+@AdminApi()
 @Controller('product-tags')
 export class ProductTagsController {
   constructor(private readonly tagService: ProductTagsService) {}

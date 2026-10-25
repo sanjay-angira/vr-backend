@@ -8,6 +8,7 @@ import {
   VerifyEmailOtpDto,
   VerifyWhatsAppOtpDto,
 } from 'src/dto/customer.dto';
+import { RefreshTokenDto } from 'src/dto/auth.dto';
 
 @ApiTags('Customer Auth')
 @Controller('customer/auth')
@@ -100,5 +101,11 @@ export class CustomerAuthController {
   })
   async resendEmailOtp(@Body() resendEmailOtpDto: ResendEmailOtpDto) {
     return this.customerAuthService.resendEmailOtp(resendEmailOtpDto);
+  }
+
+  @Post('refresh-token')
+  @ApiBody({ type: RefreshTokenDto })
+  async refreshToken(@Body() dto: RefreshTokenDto) {
+    return this.customerAuthService.refreshAccessToken(dto.refreshToken);
   }
 }

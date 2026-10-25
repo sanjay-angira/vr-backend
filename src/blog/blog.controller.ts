@@ -19,8 +19,10 @@ import {
 import { BlogService } from './blog.service';
 import { CreateBlogDto, UpdateBlogDto } from '../dto/blog.dto';
 import { PaginationDto } from '../dto/common.dto';
+import { AdminApi } from '../commonServices/admin-api.decorator';
 
 @ApiTags('Blogs')
+@AdminApi()
 @Controller('blogs')
 export class BlogController {
   constructor(private readonly blogService: BlogService) {}

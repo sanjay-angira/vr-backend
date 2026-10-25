@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JsonWebTokenError, JwtModule, JwtService } from '@nestjs/jwt';
 import { UtilityService } from './utility.service';
 import { NodemailerService } from './nodemailer.service';
@@ -22,9 +22,13 @@ import { Category } from 'src/entities/productCategory/category.entity';
     ConfigModule,
     ScheduleModule.forRoot(),
     TypeOrmModule.forFeature([User, Visitor, Category]),
-    JwtModule.register({
-      secret: 'your_jwt_secret',
-      signOptions: { expiresIn: '1d' },
+    JwtModule.registerAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService) => ({
+        secret: configService.getOrThrow<string>('JWT_SECRET'),
+        signOptions: { expiresIn: '1d' },
+      }),
     }),
   ],
   providers: [
@@ -41,6 +45,7 @@ import { Category } from 'src/entities/productCategory/category.entity';
   ],
   exports: [
     UtilityService,
+    JwtModule,
     NodemailerService,
     EmailTemplate,
     PasswordService,

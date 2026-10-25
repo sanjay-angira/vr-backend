@@ -23,13 +23,16 @@ import {
   VerifyContactLeadOtpDto,
 } from 'src/dto/contact-us-lead.dto';
 import { ContactUsLeadsService } from './contact-us-leads.service';
+import { AdminApi, PublicApi } from '../commonServices/admin-api.decorator';
 
 @ApiTags('Contact Us Leads')
+@AdminApi()
 @Controller()
 export class ContactUsLeadsController {
   constructor(private readonly contactUsLeadsService: ContactUsLeadsService) {}
 
   @Post('customer/contact-us/send-otp')
+  @PublicApi()
   @ApiOperation({ summary: 'Send OTP for contact-us lead email verification' })
   @ApiBody({ type: SendContactLeadOtpDto })
   async sendOtp(@Body() sendContactLeadOtpDto: SendContactLeadOtpDto) {
@@ -37,6 +40,7 @@ export class ContactUsLeadsController {
   }
 
   @Post('customer/contact-us/verify-otp')
+  @PublicApi()
   @ApiOperation({ summary: 'Verify OTP and create contact-us lead' })
   @ApiBody({ type: VerifyContactLeadOtpDto })
   async verifyOtp(@Body() verifyContactLeadOtpDto: VerifyContactLeadOtpDto) {

@@ -23,8 +23,10 @@ import {
   UpdateBrandDto,
   BrandQueryDto,
 } from '../dto/brand.dto';
+import { AdminApi } from '../commonServices/admin-api.decorator';
 
 @ApiTags('Brands')
+@AdminApi()
 @Controller('brands')
 export class BrandsController {
   constructor(private readonly brandsService: BrandsService) {}

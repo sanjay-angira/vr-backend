@@ -22,8 +22,10 @@ import {
 import { ReviewsService } from './reviews.service';
 import { BulkImportReviewsDto, CreateReviewDto, UpdateReviewDto,  } from '../dto/review.dto';
 import { PaginationDto } from '../dto/common.dto';
+import { AdminApi, PublicApi } from '../commonServices/admin-api.decorator';
 
 @ApiTags('Reviews')
+@AdminApi()
 @Controller('reviews')
 export class ReviewsController {
   constructor(private readonly reviewsService: ReviewsService) { }
@@ -104,6 +106,7 @@ export class ReviewsController {
   }
 
   @Get('product/:productId')
+  @PublicApi()
   @ApiOperation({ summary: 'Get all reviews for a product' })
   @ApiParam({ name: 'productId', required: true, type: Number })
   @ApiQuery({ name: 'pageNumber', required: false, type: String })
@@ -134,6 +137,7 @@ export class ReviewsController {
   }
 
   @Get('product/:productId/average')
+  @PublicApi()
   @ApiOperation({ summary: 'Get average rating for a specific product' })
   @ApiParam({ name: 'productId', required: true, type: Number })
   async getAverageRating(@Param('productId', ParseIntPipe) productId: number) {

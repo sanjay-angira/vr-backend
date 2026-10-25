@@ -6,12 +6,11 @@ import {
   ParseIntPipe,
   Patch,
   Post,
-  UseGuards,
 } from '@nestjs/common';
 import { IsBoolean } from 'class-validator';
 import { CreateWarehouseDto, UpdateWarehouseDto } from 'src/dto/warehouse.dto';
-import { AdminWarehouseGuard } from './admin-warehouse.guard';
 import { WarehousesService } from './warehouses.service';
+import { AdminApi } from 'src/commonServices/admin-api.decorator';
 
 class WarehouseStatusDto {
   @IsBoolean()
@@ -19,7 +18,7 @@ class WarehouseStatusDto {
 }
 
 @Controller('admin')
-@UseGuards(AdminWarehouseGuard)
+@AdminApi()
 export class WarehousesController {
   constructor(private readonly warehousesService: WarehousesService) {}
 

@@ -1,4 +1,10 @@
-import { HttpStatus, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  HttpStatus,
+  Injectable,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { UsersService } from '../users/users.service';
 import { User } from '../entities/user/user.entity';
 import { UserRole } from '../entities/user/userRole.entity';
@@ -67,6 +73,50 @@ export class AuthService {
     } catch (error) {
       throw error;
     }
+  }
+
+  async refreshAccessToken(refreshToken: string) {
+    let claims: { id?: unknown };
+    try {
+      claims = this.userTokenService.verifyRefreshToken(refreshToken);
+    } catch {
+      throw new UnauthorizedException('Invalid or expired refresh token');
+    }
+
+    const userId = Number(claims.id);
+    if (!Number.isSafeInteger(userId) || userId <= 0) {
+      throw new UnauthorizedException('Invalid refresh token');
+    }
+
+    const user = await this.usersRepository.findOne({
+      where: { id: userId, isActive: true, emailVerified: true },
+      relations: ['userRoles', 'userRoles.role'],
+    });
+    if (!user) {
+      throw new UnauthorizedException('User is no longer active');
+    }
+
+    user.userRoles = user.userRoles.map((userRole) => ({
+      ...userRole,
+      roleId: userRole.role.id,
+      roleName: userRole.role.roleName,
+    }));
+    const isAdministrator = user.userRoles.some((userRole) =>
+      ['admin', 'super admin'].includes(
+        String(userRole.role?.roleName).toLowerCase(),
+      ),
+    );
+    if (!isAdministrator) {
+      throw new ForbiddenException('Administrator access is required');
+    }
+
+    return successResponse(
+      {
+        accessToken: this.userTokenService.generateAccessToken(user),
+        refreshToken,
+      },
+      'Access token refreshed successfully',
+    );
   }
 
   async checkEmailExists(email: string): Promise<any> {

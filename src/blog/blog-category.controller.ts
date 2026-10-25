@@ -16,8 +16,10 @@ import {
   UpdateBlogCategoryDto,
 } from '../dto/blog-category-tag.dto';
 import { PaginationDto } from 'src/dto/common.dto';
+import { AdminApi } from '../commonServices/admin-api.decorator';
 
 @ApiTags('Blog Categories')
+@AdminApi()
 @Controller('blog-categories')
 export class BlogCategoryController {
   constructor(private readonly categoryService: BlogCategoryService) {}

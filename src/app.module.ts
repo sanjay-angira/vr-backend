@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
@@ -38,11 +39,14 @@ import { migrateCategorySeoFields } from './commonServices/migrate-category-seo-
 import { migrateProductVariantPackageDimensions } from './commonServices/migrate-product-variant-package-dimensions';
 import { migrateRequiredVariantSkus } from './commonServices/migrate-required-variant-skus';
 import { migrateWarehouses } from './commonServices/migrate-warehouses';
+import { CommonModule } from './commonServices/common.module';
+import { AdminAuthGuard } from './commonServices/admin-auth.guard';
 
 // Main application module
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
+    CommonModule,
     TypeOrmModule.forRootAsync({
       useFactory: (configService: ConfigService) => ({
         type: 'postgres' as const,
@@ -127,6 +131,6 @@ import { migrateWarehouses } from './commonServices/migrate-warehouses';
     WarehousesModule,
   ],
   controllers: [],
-  providers: [],
+  providers: [{ provide: APP_GUARD, useClass: AdminAuthGuard }],
 })
 export class AppModule {}

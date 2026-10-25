@@ -10,6 +10,12 @@ export class SignInDto {
   password: string;
 }
 
+export class RefreshTokenDto {
+  @IsString()
+  @IsNotEmpty()
+  refreshToken: string;
+}
+
 export class SendOtpDto {
   @IsEmail()
   @IsNotEmpty()

@@ -16,8 +16,10 @@ import {
   UpdateBlogTagDto,
 } from '../dto/blog-category-tag.dto';
 import { PaginationDto } from 'src/dto/common.dto';
+import { AdminApi } from '../commonServices/admin-api.decorator';
 
 @ApiTags('Blog Tags')
+@AdminApi()
 @Controller('blog-tags')
 export class BlogTagController {
   constructor(private readonly tagService: BlogTagService) {}

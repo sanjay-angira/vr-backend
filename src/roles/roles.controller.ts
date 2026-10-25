@@ -19,8 +19,10 @@ import {
   ApiBody,
 } from '@nestjs/swagger';
 import { PaginationDto } from '../dto/common.dto';
+import { AdminApi } from '../commonServices/admin-api.decorator';
 
 @ApiTags('roles')
+@AdminApi()
 @Controller('roles')
 export class RolesController {
   constructor(private rolesService: RolesService) {}
