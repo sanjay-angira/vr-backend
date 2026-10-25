@@ -51,8 +51,10 @@ async function bootstrap() {
   app.enableCors({
     origin: [
       'http://localhost:3000',  
+      'http://localhost:4200',
       'https://vrindavanrasa.com',
       'https://www.vrindavanrasa.com',
+      'https://superadmin.vrindavanrasa.com',
     ],
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     credentials: true,
