@@ -1293,6 +1293,10 @@ export class CustomerService {
               ),
               variantAttributes: variant.variantAttributes || [],
               pricing,
+              packageHeightCm : variant.packageHeightCm,
+              packageLengthCm : variant.packageLengthCm,
+              packageWidthCm : variant.packageWidthCm,
+              packageWeightGrams  : variant.packageWeightGrams,
             };
           })
           .sort((left, right) =>
