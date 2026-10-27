@@ -147,6 +147,46 @@ export class ReviewsController {
 
 
   @Post('bulk-import')
+  @ApiOperation({ summary: 'Bulk import product reviews' })
+  @ApiBody({
+    type: BulkImportReviewsDto,
+    examples: {
+      sample: {
+        summary: 'Import reviews for multiple products',
+        value: {
+          source: 'manual-import',
+          fictional: true,
+          products: [
+            {
+              productId: 1,
+              reviews: [
+                {
+                  name: 'Aarav Sharma',
+                  rating: 5,
+                  comment: 'Excellent quality and beautiful packaging.',
+                },
+                {
+                  name: 'Mira Patel',
+                  rating: 4,
+                  comment: 'Lovely product; delivery was quick.',
+                },
+              ],
+            },
+            {
+              productId: 2,
+              reviews: [
+                {
+                  name: 'Rohan Verma',
+                  rating: 5,
+                  comment: 'The fragrance is wonderful and long-lasting.',
+                },
+              ],
+            },
+          ],
+        },
+      },
+    },
+  })
   async bulkImport(@Body() dto: BulkImportReviewsDto) {
     return this.reviewsService.bulkImport(dto);
   }
