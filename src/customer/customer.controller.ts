@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -507,6 +508,34 @@ export class CustomerController {
   applyCoupon(@Req() req: CustomerRequest, @Body() dto: ApplyCouponDto) {
     if (req.customerId) dto.userId = req.customerId;
     return this.customerService.applyCoupon(dto);
+  }
+
+  @Get('shipping-estimate')
+  @CustomerApi({ allowGuest: true })
+  @ApiOperation({ summary: 'Estimate shipping charges for the current cart' })
+  @ApiQuery({ name: 'deliveryPincode', required: true, type: String })
+  @ApiQuery({
+    name: 'paymentMode',
+    required: true,
+    enum: ['COD', 'Pre-paid'],
+  })
+  estimateShipping(
+    @Req() req: CustomerRequest,
+    @Query('deliveryPincode') deliveryPincode?: string,
+    @Query('paymentMode') paymentMode?: string,
+    @Query('userId') userId?: string,
+    @Query('sessionId') sessionId?: string,
+  ) {
+    if (paymentMode !== 'COD' && paymentMode !== 'Pre-paid') {
+      throw new BadRequestException('paymentMode must be COD or Pre-paid');
+    }
+
+    return this.customerService.estimateCartShipping(
+      req.customerId || (userId ? parseInt(userId, 10) : null),
+      sessionId || null,
+      deliveryPincode || '',
+      paymentMode,
+    );
   }
 
   @Post('checkout')

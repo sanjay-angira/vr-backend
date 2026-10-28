@@ -46,7 +46,10 @@ import { Coupon, DiscountType } from 'src/entities/user/coupon.entity';
 import { Offer } from 'src/entities/product/offer.entity';
 import { ApplyCouponDto } from 'src/dto/coupon.dto';
 import { PaymentMode, ShippingService } from 'src/shipping/shipping.service';
-import { groupCartItemsByWarehouse } from 'src/shipping/shipping-cart-groups';
+import {
+  groupCartItemsByWarehouse,
+  type ShippingCartLine,
+} from 'src/shipping/shipping-cart-groups';
 
 type ResolvedCheckoutCoupon = {
   id: number;
@@ -150,6 +153,30 @@ export class CustomerService {
     if (!userId) return false;
     return (coupon.users || []).some(
       (user) => Number(user.id) === Number(userId),
+    );
+  }
+
+  private async getCartShippingQuotes(
+    items: ShippingCartLine[],
+    subtotal: number,
+    pincode: string,
+    paymentMode: PaymentMode,
+  ) {
+    const groups = groupCartItemsByWarehouse(items);
+
+    return Promise.all(
+      [...groups.values()].map(async (group) => ({
+        group,
+        quote: await this.shippingService.checkPincode(pincode, {
+          subtotal,
+          weightGrams: group.weightGrams,
+          packageHeightCm: group.packageHeightCm,
+          packageWidthCm: group.packageWidthCm,
+          packageLengthCm: group.packageLengthCm,
+          productVariantId: group.variantIds[0],
+          paymentMode,
+        }),
+      })),
     );
   }
 
@@ -1920,6 +1947,49 @@ export class CustomerService {
     }
   }
 
+  async estimateCartShipping(
+    userId: number | null,
+    sessionId: string | null,
+    pincode: string,
+    paymentMode: PaymentMode,
+  ) {
+    if (!userId && !sessionId) {
+      throw new BadRequestException('userId or sessionId is required');
+    }
+
+    const normalizedPincode = this.shippingService.normalizePincode(pincode);
+    if (!normalizedPincode) {
+      throw new BadRequestException('Enter a valid 6-digit PIN code');
+    }
+
+    const cartData = await this.getCartItems(userId, sessionId);
+    if (!cartData.items.length) {
+      throw new BadRequestException('Cart is empty');
+    }
+
+    const quotes = await this.getCartShippingQuotes(
+      cartData.items,
+      Number(cartData.total) || 0,
+      normalizedPincode,
+      paymentMode,
+    );
+    const unavailable = quotes.find(({ quote }) => !quote.serviceable);
+
+    return {
+      pincode: normalizedPincode,
+      serviceable: !unavailable,
+      shippingFee: unavailable
+        ? 0
+        : quotes.reduce(
+            (total, { quote }) =>
+              total + (quote.freeShipping ? 0 : quote.shippingFee),
+            0,
+          ),
+      freeShipping: quotes.every(({ quote }) => quote.freeShipping),
+      message: unavailable?.quote.message || 'Shipping estimate calculated',
+    };
+  }
+
   async placeOrder(dto: CheckoutDto) {
     const userId = dto.userId ?? null;
     const sessionId = dto.sessionId ?? null;
@@ -1953,54 +2023,48 @@ export class CustomerService {
 
     const paymentMode: PaymentMode =
       dto.paymentMethod === 'cod' ? 'COD' : 'Pre-paid';
-    const shipmentGroups = groupCartItemsByWarehouse(cartData.items);
-
-    const shipmentQuotes = await Promise.all(
-      [...shipmentGroups.values()].map(async (group) => {
-        const { brandId } = group;
-        const quote = await this.shippingService.checkPincode(pincode, {
-          subtotal: Number(cartData.total) || 0,
-          weightGrams: group.weightGrams,
-          packageHeightCm: group.packageHeightCm,
-          packageWidthCm: group.packageWidthCm,
-          packageLengthCm: group.packageLengthCm,
-          productVariantId: group.variantIds[0],
-          paymentMode,
-        });
-        if (!quote.serviceable) {
-          throw new BadRequestException(
-            quote.message || `Delivery is unavailable for brand ${brandId}`,
-          );
-        }
-        if (dto.paymentMethod === 'cod' && !quote.codAvailable) {
-          throw new BadRequestException(
-            `Cash on delivery is unavailable for brand ${brandId}`,
-          );
-        }
-        if (
-          !quote.warehouseId ||
-          !quote.warehouseName ||
-          !quote.warehousePincode
-        ) {
-          throw new BadRequestException(
-            `No valid registered pickup warehouse is available for brand ${brandId}`,
-          );
-        }
-        return {
-          brandId,
-          quote,
-          snapshot: {
-            brandId,
-            warehouseId: quote.warehouseId,
-            warehouseName: quote.warehouseName,
-            originPincode: quote.warehousePincode,
-            destinationPincode: pincode,
-            shippingFee: quote.freeShipping ? 0 : quote.shippingFee,
-            itemVariationIds: group.variantIds,
-          },
-        };
-      }),
+    const shippingQuotes = await this.getCartShippingQuotes(
+      cartData.items,
+      Number(cartData.total) || 0,
+      pincode,
+      paymentMode,
     );
+
+    const shipmentQuotes = shippingQuotes.map(({ group, quote }) => {
+      const { brandId } = group;
+      if (!quote.serviceable) {
+        throw new BadRequestException(
+          quote.message || `Delivery is unavailable for brand ${brandId}`,
+        );
+      }
+      if (dto.paymentMethod === 'cod' && !quote.codAvailable) {
+        throw new BadRequestException(
+          `Cash on delivery is unavailable for brand ${brandId}`,
+        );
+      }
+      if (
+        !quote.warehouseId ||
+        !quote.warehouseName ||
+        !quote.warehousePincode
+      ) {
+        throw new BadRequestException(
+          `No valid registered pickup warehouse is available for brand ${brandId}`,
+        );
+      }
+      return {
+        brandId,
+        quote,
+        snapshot: {
+          brandId,
+          warehouseId: quote.warehouseId,
+          warehouseName: quote.warehouseName,
+          originPincode: quote.warehousePincode,
+          destinationPincode: pincode,
+          shippingFee: quote.freeShipping ? 0 : quote.shippingFee,
+          itemVariationIds: group.variantIds,
+        },
+      };
+    });
     const shipmentJson = shipmentQuotes.map((shipment) => shipment.snapshot);
     const shippingFee = shipmentJson.reduce(
       (totalFee, shipment) => totalFee + shipment.shippingFee,
