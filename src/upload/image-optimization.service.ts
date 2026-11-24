@@ -7,7 +7,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { randomUUID } from 'node:crypto';
 import { extname } from 'node:path';
-import sharp, { type Metadata as SharpMetadata } from 'sharp';
+import type { Metadata as SharpMetadata } from 'sharp';
 import { S3Service } from './s3.service';
 import {
   IMAGE_OPTIMIZATION_PRESETS,
@@ -18,6 +18,8 @@ import {
   buildFlatAssetBase,
   setColumnForWidth,
 } from './image-optimization.types';
+
+const sharp: typeof import('sharp').default = require('sharp');
 
 @Injectable()
 export class ImageOptimizationService {
@@ -65,7 +67,7 @@ export class ImageOptimizationService {
         error instanceof Error ? error.message : 'Unknown sharp error';
       this.logger.error(`Sharp metadata failed: ${detail}`);
       throw new BadRequestException(
-        'Invalid or corrupted image. Please upload a valid image file.',
+        `Invalid or corrupted image: ${detail}`,
       );
     }
 
@@ -348,7 +350,7 @@ export class ImageOptimizationService {
     }
     if (!this.isSupportedImageMime(file.mimetype)) {
       throw new BadRequestException(
-        `Unsupported image type "${file.mimetype}". Allowed: JPEG, PNG, WebP, GIF, TIFF, AVIF.`,
+        `Unsupported image type "${file.mimetype}". Allowed: JPEG, PNG, WebP, GIF, TIFF, SVG, HEIC, HEIF, AVIF.`,
       );
     }
     if (file.size > MAX_OPTIMIZED_IMAGE_BYTES) {

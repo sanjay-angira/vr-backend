@@ -119,6 +119,9 @@ export const SUPPORTED_IMAGE_MIME_TYPES = [
   'image/gif',
   'image/tiff',
   'image/avif',
+  'image/svg+xml',
+  'image/heic',
+  'image/heif',
 ] as const;
 
 export const MAX_OPTIMIZED_IMAGE_BYTES = 10 * 1024 * 1024;
