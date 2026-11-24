@@ -6,6 +6,7 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   OneToMany,
+  Index,
   ManyToMany,
   JoinTable,
 } from 'typeorm';
@@ -43,8 +44,9 @@ export class ProductVariant {
   @Column({ type: 'varchar', length: 255 })
   sku!: string;
 
-  @Column({ type: 'varchar', nullable: true })
-  slug!: string | null;
+  @Index('UQ_product_variants_slug', ['slug'], { unique: true })
+  @Column({ type: 'varchar' })
+  slug!: string;
 
   @Column({ type: 'varchar', nullable: true })
   description!: string | null;

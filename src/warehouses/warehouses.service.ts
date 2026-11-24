@@ -13,7 +13,6 @@ import { InjectRepository } from '@nestjs/typeorm';
 import axios from 'axios';
 import { firstValueFrom } from 'rxjs';
 import { DataSource, Repository } from 'typeorm';
-import { Brand } from 'src/entities/product/brand.entity';
 import {
   Warehouse,
   WarehouseRegistrationStatus,
@@ -55,34 +54,26 @@ export class WarehousesService {
   constructor(
     @InjectRepository(Warehouse)
     private readonly warehouseRepository: Repository<Warehouse>,
-    @InjectRepository(Brand)
-    private readonly brandRepository: Repository<Brand>,
     private readonly http: HttpService,
     private readonly config: ConfigService,
     private readonly dataSource: DataSource,
   ) {}
 
-  async create(brandId: number, dto: CreateWarehouseDto) {
-    const brand = await this.brandRepository.findOne({
-      where: { id: brandId },
-    });
-    if (!brand) throw new NotFoundException('Brand not found');
-
+  async create(dto: CreateWarehouseDto) {
     const duplicate = await this.warehouseRepository.findOne({
       where: [
-        { brandId, name: dto.name, pincode: dto.pincode },
-        { brandId, registeredName: dto.registeredName, pincode: dto.pincode },
+        { name: dto.name, pincode: dto.pincode },
+        { registeredName: dto.registeredName, pincode: dto.pincode },
       ],
     });
     if (duplicate) {
       throw new ConflictException(
-        'A warehouse with this name and PIN code already exists for the brand',
+        'A warehouse with this name and PIN code already exists',
       );
     }
 
     const warehouse = this.warehouseRepository.create({
       ...dto,
-      brandId,
       addressLine2: dto.addressLine2 || null,
       registrationStatus: WarehouseRegistrationStatus.PENDING,
       registrationError: null,
@@ -106,7 +97,7 @@ export class WarehousesService {
           : null;
       if (databaseCode === '23505') {
         throw new ConflictException(
-          'A warehouse with this name and PIN code already exists for the brand',
+          'A warehouse with this name and PIN code already exists',
         );
       }
       throw error;
@@ -178,11 +169,14 @@ export class WarehousesService {
     );
   }
 
-  async findByBrand(brandId: number) {
-    const brandExists = await this.brandRepository.existsBy({ id: brandId });
-    if (!brandExists) throw new NotFoundException('Brand not found');
+  async findAll(registeredOnly = false) {
     const warehouses = await this.warehouseRepository.find({
-      where: { brandId },
+      where: registeredOnly
+        ? {
+            registrationStatus: WarehouseRegistrationStatus.REGISTERED,
+            isActive: true,
+          }
+        : undefined,
       order: { createdAt: 'DESC' },
     });
     return successResponse(warehouses, 'Warehouses retrieved successfully');
@@ -221,7 +215,7 @@ export class WarehousesService {
         !warehouse.isActive)
     ) {
       throw new BadRequestException(
-        'Only active, registered warehouses can be the brand default',
+        'Only active, registered warehouses can be the default warehouse',
       );
     }
     const { isDefault, ...updateFields } = dto;
@@ -239,7 +233,7 @@ export class WarehousesService {
       !warehouse.isActive
     ) {
       throw new BadRequestException(
-        'Only active, registered warehouses can be the brand default',
+        'Only active, registered warehouses can be the default warehouse',
       );
     }
 
@@ -248,7 +242,6 @@ export class WarehousesService {
         .createQueryBuilder()
         .update(Warehouse)
         .set({ isDefault: false })
-        .where('"brandId" = :brandId', { brandId: warehouse.brandId })
         .execute();
       warehouse.isDefault = true;
       return manager.save(Warehouse, warehouse);

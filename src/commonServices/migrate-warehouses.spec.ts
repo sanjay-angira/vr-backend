@@ -16,6 +16,14 @@ describe('migrateWarehouses', () => {
       expect.stringContaining('WHERE "isDefault" = true'),
     );
     expect(query).toHaveBeenCalledWith(
+      expect.stringContaining('UQ_warehouses_name_pin'),
+    );
+    expect(
+      query.mock.calls.some(([statement]) =>
+        String(statement).includes('"brandId"'),
+      ),
+    ).toBe(false);
+    expect(query).toHaveBeenCalledWith(
       expect.stringContaining('"shipmentJson" jsonb'),
     );
     expect(query).toHaveBeenCalledWith(

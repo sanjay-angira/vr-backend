@@ -248,7 +248,6 @@ export class CustomerHomepageService {
       relations: {
         variants: { images: true, productVariantOffers: true },
         category: { categoryOffers: true },
-        brand: { brandOffers: true },
         productOffers: true,
       },
       relationLoadStrategy: 'query',

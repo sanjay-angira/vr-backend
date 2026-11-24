@@ -3,12 +3,9 @@ import {
   CreateDateColumn,
   Entity,
   Index,
-  JoinColumn,
-  ManyToOne,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
-import { Brand } from './brand.entity';
 
 export enum WarehouseRegistrationStatus {
   PENDING = 'PENDING',
@@ -18,27 +15,17 @@ export enum WarehouseRegistrationStatus {
 }
 
 @Entity('warehouses')
-@Index('IDX_warehouses_brand_id', ['brandId'])
-@Index('UQ_warehouses_brand_name_pin', ['brandId', 'name', 'pincode'], {
+@Index('IDX_warehouses_name_pin', ['name', 'pincode'])
+@Index('UQ_warehouses_name_pin', ['name', 'pincode'], {
   unique: true,
 })
-@Index('UQ_warehouses_brand_default', ['brandId'], {
+@Index('UQ_warehouses_default', ['isDefault'], {
   unique: true,
   where: '"isDefault" = true',
 })
 export class Warehouse {
   @PrimaryGeneratedColumn()
   id!: number;
-
-  @Column({ type: 'int' })
-  brandId!: number;
-
-  @ManyToOne(() => Brand, (brand) => brand.warehouses, {
-    nullable: false,
-    onDelete: 'RESTRICT',
-  })
-  @JoinColumn({ name: 'brandId' })
-  brand!: Brand;
 
   @Column({ type: 'varchar', length: 120 })
   name!: string;

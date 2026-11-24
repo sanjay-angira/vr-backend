@@ -112,6 +112,7 @@ export class CmsSectionService implements OnModuleInit {
     while (true) {
       const existing = await this.cmsRepo.findOne({
         where: { slug: candidate },
+        loadEagerRelations: false,
       });
       if (!existing || (excludeId != null && existing.id === excludeId)) {
         return candidate;
@@ -122,7 +123,9 @@ export class CmsSectionService implements OnModuleInit {
   }
 
   private async backfillMissingSlugs() {
-    const sections = await this.cmsRepo.find();
+    const sections = await this.cmsRepo.find({
+      loadEagerRelations: false,
+    });
     for (const section of sections) {
       if (section.slug?.trim()) continue;
       section.slug = await this.ensureUniqueSlug(
@@ -143,7 +146,9 @@ export class CmsSectionService implements OnModuleInit {
   }
 
   private async removeDeprecatedSectionDataFields() {
-    const sections = await this.cmsRepo.find();
+    const sections = await this.cmsRepo.find({
+      loadEagerRelations: false,
+    });
 
     for (const section of sections) {
       if (section.data?.backgroundColor !== undefined) {

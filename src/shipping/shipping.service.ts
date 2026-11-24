@@ -318,11 +318,11 @@ export class ShippingService {
     }
     const variant = await this.variantRepository.findOne({
       where: { id: variantId },
-      relations: ['product', 'product.brand', 'product.warehouse'],
+      relations: ['product', 'product.warehouse'],
     });
-    if (!variant?.product?.brand?.id) {
+    if (!variant?.product) {
       throw new ServiceUnavailableException(
-        'This product is not assigned to a brand with a registered dispatch warehouse',
+        'Product not found for this shipment',
       );
     }
     const assignedWarehouseId = variant.product.warehouseId;
@@ -330,7 +330,6 @@ export class ShippingService {
       ? variant.product.warehouse
       : await this.warehouseRepository.findOne({
           where: {
-            brandId: variant.product.brand.id,
             isDefault: true,
             isActive: true,
             registrationStatus: WarehouseRegistrationStatus.REGISTERED,
@@ -338,7 +337,6 @@ export class ShippingService {
         });
     if (
       !warehouse ||
-      warehouse.brandId !== variant.product.brand.id ||
       !warehouse.isActive ||
       warehouse.registrationStatus !== WarehouseRegistrationStatus.REGISTERED ||
       !this.normalizePincode(warehouse.pincode)
@@ -346,7 +344,7 @@ export class ShippingService {
       throw new ServiceUnavailableException(
         assignedWarehouseId
           ? 'This product pickup warehouse is not active or registered'
-          : 'This brand has no active, registered default warehouse configured',
+          : 'No active, registered default warehouse is configured',
       );
     }
     return warehouse;

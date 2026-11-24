@@ -8,7 +8,6 @@ import { Repository, In } from 'typeorm';
 import { Product } from 'src/entities/product/product.entity';
 import { ProductVariant } from 'src/entities/product/product-variants.entity';
 import { VariantImage } from 'src/entities/product/variant-image.entity';
-import { Offer } from 'src/entities/product/offer.entity';
 import { Attribute } from 'src/entities/product/attribute.entity';
 import {
   AtttributeViewOption,
@@ -16,6 +15,7 @@ import {
 } from 'src/entities/product/product-variant-attribute.entity';
 import { CreateVariantDto } from 'src/dto/product.dto';
 import { productImageColumnFields } from 'src/commonServices/image-asset.util';
+import { UtilityService } from 'src/commonServices/utility.service';
 
 @Injectable()
 export class AddProductVariantService {
@@ -28,42 +28,19 @@ export class AddProductVariantService {
     private readonly variantAttributeRepo: Repository<VariantAttribute>,
     @InjectRepository(Attribute)
     private readonly attributeRepo: Repository<Attribute>,
-    @InjectRepository(Offer)
-    private readonly offerRepo: Repository<Offer>,
+    private readonly utilityService: UtilityService,
   ) {}
 
-  async createVariants(
-    product: Product,
-    variants: CreateVariantDto[],
-    offerRepo?: Repository<Offer>,
-  ) {
-    const repo = offerRepo || this.offerRepo;
-
+  async createVariants(product: Product, variants: CreateVariantDto[]) {
     for (const v of variants) {
       const variantName = v.name?.trim();
       if (!variantName) {
         throw new BadRequestException('Variant name is required');
       }
 
-      const variantSlug = v.slug?.trim();
-      if (!variantSlug) {
-        throw new BadRequestException('Variant slug is required');
-      }
-
       const sku = v.sku?.trim();
       if (!sku) {
         throw new BadRequestException('Variant SKU is required');
-      }
-
-      let offers: Offer[] = [];
-      if (v.productVariantOffers?.length) {
-        const uniqueIds = [...new Set(v.productVariantOffers)];
-        offers = await repo.find({
-          where: { id: In(uniqueIds) },
-        });
-        if (offers.length !== uniqueIds.length) {
-          throw new NotFoundException('One or more variant offers not found');
-        }
       }
 
       const newVariant = this.variantRepo.create({
@@ -75,10 +52,9 @@ export class AddProductVariantService {
         packageLengthCm: v.packageLengthCm,
         packageWeightGrams: v.packageWeightGrams,
         sku,
-        slug: variantSlug,
+        slug: await this.generateUniqueVariantSlug(variantName),
         description: v.description ?? null,
         product: { id: product.id },
-        productVariantOffers: offers,
       });
 
       const savedVariant = await this.variantRepo.save(newVariant);
@@ -99,6 +75,19 @@ export class AddProductVariantService {
         await this.saveVariantAttributes(savedVariant.id, v.variantAttributes);
       }
     }
+  }
+
+  private async generateUniqueVariantSlug(
+    variantName: string,
+  ): Promise<string> {
+    const baseSlug = this.utilityService.createSlug(variantName) || 'variant';
+    let slug = baseSlug;
+    let suffix = 2;
+    while (await this.variantRepo.exist({ where: { slug } })) {
+      slug = `${baseSlug}-${suffix}`;
+      suffix += 1;
+    }
+    return slug;
   }
 
   private async saveVariantAttributes(

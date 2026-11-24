@@ -14,15 +14,15 @@ import {
 } from 'src/commonServices/response.service';
 import { Tags } from 'src/entities/product/tags.entity';
 import { Offer } from 'src/entities/product/offer.entity';
-import { Brand } from 'src/entities/product/brand.entity';
-import {
-  Warehouse,
-  WarehouseRegistrationStatus,
-} from 'src/entities/product/warehouse.entity';
 import { ProductAttribute } from 'src/entities/product/product-attribute.entity';
 import { Attribute } from 'src/entities/product/attribute.entity';
 import { AddProductSeoService } from './addProductSeo.service';
 import { AddProductVariantService } from './addProductVariant.service';
+import { UtilityService } from 'src/commonServices/utility.service';
+import {
+  Warehouse,
+  WarehouseRegistrationStatus,
+} from 'src/entities/product/warehouse.entity';
 
 function isProductSlugConflict(error: unknown): boolean {
   if (!error || typeof error !== 'object') return false;
@@ -43,20 +43,19 @@ export class AddProductService {
     private readonly productRepo: Repository<Product>,
     @InjectRepository(Category)
     private readonly categoryRepo: Repository<Category>,
-    @InjectRepository(Brand)
-    private readonly brandRepo: Repository<Brand>,
-    @InjectRepository(Warehouse)
-    private readonly warehouseRepo: Repository<Warehouse>,
     @InjectRepository(Offer)
     private readonly offerRepo: Repository<Offer>,
     @InjectRepository(Tags)
     private readonly tagRepo: Repository<Tags>,
+    @InjectRepository(Warehouse)
+    private readonly warehouseRepo: Repository<Warehouse>,
     @InjectRepository(ProductAttribute)
     private readonly productAttributeRepo: Repository<ProductAttribute>,
     @InjectRepository(Attribute)
     private readonly attributeRepo: Repository<Attribute>,
     private readonly addProductVariantService: AddProductVariantService,
     private readonly addProductSeoService: AddProductSeoService,
+    private readonly utilityService: UtilityService,
   ) {}
 
   async create(createProductDto: CreateProductDto) {
@@ -75,36 +74,20 @@ export class AddProductService {
         if (!category) throw new NotFoundException('Category not found');
       }
 
-      /* ================= BRAND ================= */
-      let brand: Brand | null = null;
-      if (createProductDto.brandId) {
-        brand = await this.brandRepo.findOne({
-          where: { id: createProductDto.brandId },
+      let warehouse: Warehouse | null = null;
+      if (createProductDto.warehouseId) {
+        warehouse = await this.warehouseRepo.findOne({
+          where: {
+            id: createProductDto.warehouseId,
+            isActive: true,
+            registrationStatus: WarehouseRegistrationStatus.REGISTERED,
+          },
         });
-
-        if (!brand) throw new NotFoundException('Brand not found');
-      }
-
-      if (createProductDto.warehouseId && !createProductDto.brandId) {
-        throw new BadRequestException(
-          'A brand is required to assign a pickup warehouse',
-        );
-      }
-
-      const warehouse = createProductDto.warehouseId
-        ? await this.warehouseRepo.findOne({
-            where: {
-              id: createProductDto.warehouseId,
-              brandId: createProductDto.brandId,
-              isActive: true,
-              registrationStatus: WarehouseRegistrationStatus.REGISTERED,
-            },
-          })
-        : null;
-      if (createProductDto.brandId && !warehouse) {
-        throw new BadRequestException(
-          'Select an active, registered pickup warehouse for this brand',
-        );
+        if (!warehouse) {
+          throw new BadRequestException(
+            'Select an active, registered pickup warehouse',
+          );
+        }
       }
 
       /* ================= OFFERS ================= */
@@ -161,13 +144,17 @@ export class AddProductService {
       /* ================= CREATE PRODUCT ================= */
       const product = this.productRepo.create({
         productName: createProductDto.productName,
-        productSlug: createProductDto.productSlug.trim(),
+        productSlug:
+          this.utilityService.createSlug(createProductDto.productName) ||
+          'product',
         shortDescription: createProductDto.shortDescription ?? null,
         description: createProductDto.description ?? null,
         isActive: createProductDto.isActive ?? true,
+        isFeatured: createProductDto.isFeatured ?? false,
+        newArrival: createProductDto.newArrival ?? false,
+        bestSeller: createProductDto.bestSeller ?? false,
         publishStatus: createProductDto.publishStatus ?? PublishStatus.DRAFT,
         category: category ?? undefined,
-        brand: brand ?? undefined,
         warehouse: warehouse ?? undefined,
         productOffers: offers,
         frequentlyBoughtTogether: frequentlyBoughtProducts,
@@ -202,7 +189,6 @@ export class AddProductService {
       await this.addProductVariantService.createVariants(
         savedProduct,
         createProductDto.variants,
-        this.offerRepo,
       );
 
       /* ================= TAG BIND ================= */
@@ -267,7 +253,6 @@ export class AddProductService {
           'productTags',
           'productOffers',
           'category',
-          'brand',
         ],
       });
 

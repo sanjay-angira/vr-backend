@@ -7,15 +7,14 @@ import { CommonModule } from 'src/commonServices/common.module';
 import { ProductVariant } from 'src/entities/product/product-variants.entity';
 import { Tags } from 'src/entities/product/tags.entity';
 import { Offer } from 'src/entities/product/offer.entity';
-import { Brand } from 'src/entities/product/brand.entity';
 import { Faq } from 'src/entities/product/faq.entity';
 import { Product } from 'src/entities/product/product.entity';
+import { Warehouse } from 'src/entities/product/warehouse.entity';
 import { ProductSeo } from 'src/entities/product/product-seo.entity';
 import { ProductAttribute } from 'src/entities/product/product-attribute.entity';
 import { Attribute } from 'src/entities/product/attribute.entity';
 import { VariantAttribute } from 'src/entities/product/product-variant-attribute.entity';
 import { VariantImage } from 'src/entities/product/variant-image.entity';
-import { Warehouse } from 'src/entities/product/warehouse.entity';
 import { UpdateProductService } from './updateProduct.service';
 import { AddProductService } from './addProduct.service';
 import { AddProductSeoService } from './addProductSeo.service';
@@ -27,6 +26,7 @@ import { UpdateProductSeoService } from './updatedProductSeo.service';
   imports: [
     TypeOrmModule.forFeature([
       Product,
+      Warehouse,
       ProductSeo,
       ProductAttribute,
       Attribute,
@@ -35,10 +35,8 @@ import { UpdateProductSeoService } from './updatedProductSeo.service';
       Category,
       Offer,
       Tags,
-      Brand,
       Faq,
       VariantImage,
-      Warehouse,
     ]),
     CommonModule,
   ],

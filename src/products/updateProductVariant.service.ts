@@ -8,7 +8,6 @@ import { Repository, In } from 'typeorm';
 import { Product } from 'src/entities/product/product.entity';
 import { ProductVariant } from 'src/entities/product/product-variants.entity';
 import { VariantImage } from 'src/entities/product/variant-image.entity';
-import { Offer } from 'src/entities/product/offer.entity';
 import { Attribute } from 'src/entities/product/attribute.entity';
 import {
   AtttributeViewOption,
@@ -16,6 +15,7 @@ import {
 } from 'src/entities/product/product-variant-attribute.entity';
 import { UpdateVariantDto } from 'src/dto/product.dto';
 import { productImageColumnFields } from 'src/commonServices/image-asset.util';
+import { UtilityService } from 'src/commonServices/utility.service';
 
 export function normalizeVariantImageUrls(
   images: unknown[] | null | undefined,
@@ -79,19 +79,15 @@ export class UpdateProductVariantService {
     private readonly variantAttributeRepo: Repository<VariantAttribute>,
     @InjectRepository(Attribute)
     private readonly attributeRepo: Repository<Attribute>,
-    @InjectRepository(Offer)
-    private readonly offerRepo: Repository<Offer>,
+    private readonly utilityService: UtilityService,
   ) {}
 
   async updateVariants(
     product: Product,
     variants: UpdateVariantDto[],
-    offerRepo?: Repository<Offer>,
   ) {
-    const repo = offerRepo || this.offerRepo;
     const existing = await this.variantRepo.find({
       where: { product: { id: product.id } },
-      relations: ['productVariantOffers'],
     });
 
     const existingMap = new Map(existing.map((v) => [Number(v.id), v]));
@@ -118,11 +114,6 @@ export class UpdateProductVariantService {
           throw new BadRequestException('Variant name is required');
         }
 
-        const variantSlug = (v.slug ?? existingVariant.slug)?.trim();
-        if (!variantSlug) {
-          throw new BadRequestException('Variant slug is required');
-        }
-
         const sku = v.sku?.trim();
         if (!sku) {
           throw new BadRequestException('Variant SKU is required');
@@ -136,62 +127,21 @@ export class UpdateProductVariantService {
         existingVariant.packageLengthCm = v.packageLengthCm;
         existingVariant.packageWeightGrams = v.packageWeightGrams;
         existingVariant.sku = sku;
-        existingVariant.slug = variantSlug;
+        if (v.name !== undefined || !existingVariant.slug) {
+          existingVariant.slug = await this.generateUniqueVariantSlug(
+            variantName,
+            existingVariant.id,
+          );
+        }
         if (v.description !== undefined) {
           existingVariant.description = v.description ?? null;
         }
 
-        if (v.productVariantOffers !== undefined) {
-          const uniqueIds = [...new Set(v.productVariantOffers)];
-          let offers: Offer[] = [];
-          if (uniqueIds.length > 0) {
-            offers = await repo.find({
-              where: { id: In(uniqueIds) },
-            });
-            if (offers.length !== uniqueIds.length) {
-              throw new NotFoundException(
-                'One or more variant offers not found',
-              );
-            }
-          }
-
-          // Explicit join-table sync so clearing offers (empty []) actually removes rows.
-          const previous = existingVariant.productVariantOffers ?? [];
-          const nextIds = new Set(offers.map((o) => o.id));
-          const previousIds = new Set(previous.map((o) => o.id));
-          const toAdd = offers.filter((o) => !previousIds.has(o.id));
-          const toRemove = previous.filter((o) => !nextIds.has(o.id));
-          if (toAdd.length || toRemove.length) {
-            await this.variantRepo
-              .createQueryBuilder()
-              .relation(ProductVariant, 'productVariantOffers')
-              .of(existingVariant)
-              .addAndRemove(toAdd, toRemove);
-          }
-          existingVariant.productVariantOffers = offers;
-        }
-
         savedVariant = await this.variantRepo.save(existingVariant);
       } else {
-        let offers: Offer[] = [];
-        if (v.productVariantOffers?.length) {
-          const uniqueIds = [...new Set(v.productVariantOffers)];
-          offers = await repo.find({
-            where: { id: In(uniqueIds) },
-          });
-          if (offers.length !== uniqueIds.length) {
-            throw new NotFoundException('One or more variant offers not found');
-          }
-        }
-
         const variantName = v.name?.trim();
         if (!variantName) {
           throw new BadRequestException('Variant name is required');
-        }
-
-        const variantSlug = v.slug?.trim();
-        if (!variantSlug) {
-          throw new BadRequestException('Variant slug is required');
         }
 
         const sku = v.sku?.trim();
@@ -208,10 +158,9 @@ export class UpdateProductVariantService {
           packageLengthCm: v.packageLengthCm,
           packageWeightGrams: v.packageWeightGrams,
           sku,
-          slug: variantSlug,
+          slug: await this.generateUniqueVariantSlug(variantName),
           description: v.description ?? null,
           product: { id: product.id },
-          productVariantOffers: offers,
         });
 
         savedVariant = await this.variantRepo.save(newVariant);
@@ -262,6 +211,30 @@ export class UpdateProductVariantService {
         }
       }
     }
+  }
+
+  private async generateUniqueVariantSlug(
+    variantName: string,
+    excludeId?: number,
+  ): Promise<string> {
+      const baseSlug = this.utilityService.createSlug(variantName) || 'variant';
+      let slug = baseSlug;
+      let suffix = 2;
+      let existing = await this.variantRepo.findOne({
+        where: { slug },
+        select: { id: true },
+      });
+
+      while (existing && existing.id !== excludeId) {
+        slug = `${baseSlug}-${suffix}`;
+        suffix += 1;
+        existing = await this.variantRepo.findOne({
+          where: { slug },
+          select: { id: true },
+        });
+      }
+
+    return slug;
   }
 
   private async saveVariantAttributes(

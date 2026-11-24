@@ -9,12 +9,11 @@ export type ShippingCartLine = {
     packageHeightCm: number;
     packageWidthCm: number;
     packageLengthCm: number;
-    product: { brandId: number | null; warehouseId?: number | null } | null;
+    product: { warehouseId?: number | null } | null;
   } | null;
 };
 
 export type ShippingPackageGroup = {
-  brandId: number;
   warehouseId: number | null;
   variantIds: number[];
   weightGrams: number;
@@ -29,12 +28,6 @@ export function groupCartItemsByWarehouse(
   const groups = new Map<string, ShippingPackageGroup>();
 
   for (const item of items) {
-    const brandId = item.variant?.product?.brandId;
-    if (!brandId) {
-      throw new BadRequestException(
-        `A brand is required to resolve the dispatch warehouse for ${item.productName || 'one of the items'}`,
-      );
-    }
     const quantity = Number(item.quantity);
     const weight = Number(item.variant?.packageWeightGrams);
     const height = Number(item.variant?.packageHeightCm);
@@ -58,9 +51,8 @@ export function groupCartItemsByWarehouse(
     }
 
     const warehouseId = item.variant?.product?.warehouseId ?? null;
-    const key = `${brandId}:${warehouseId ?? 'default'}`;
+    const key = warehouseId === null ? 'default' : String(warehouseId);
     const group = groups.get(key) ?? {
-      brandId,
       warehouseId,
       variantIds: [],
       weightGrams: 0,

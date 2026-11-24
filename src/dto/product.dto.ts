@@ -93,9 +93,9 @@ export class CreateVariantDto {
   @IsNotEmpty()
   name!: string;
 
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
-  slug!: string;
+  slug?: string;
 
   @IsNumber()
   price!: number;
@@ -233,9 +233,9 @@ export class CreateProductDto {
   @IsNotEmpty()
   productName!: string;
 
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
-  productSlug!: string;
+  productSlug?: string;
 
   @IsString()
   @IsOptional()
@@ -249,13 +249,21 @@ export class CreateProductDto {
   @IsOptional()
   isActive?: boolean;
 
+  @IsBoolean()
+  @IsOptional()
+  isFeatured?: boolean;
+
+  @IsBoolean()
+  @IsOptional()
+  newArrival?: boolean;
+
+  @IsBoolean()
+  @IsOptional()
+  bestSeller?: boolean;
+
   @IsEnum(PublishStatus)
   @IsOptional()
   publishStatus?: PublishStatus;
-
-  @IsNumber()
-  @IsOptional()
-  brandId?: number;
 
   @Type(() => Number)
   @IsInt()
@@ -471,18 +479,26 @@ export class UpdateProductDto {
   isActive?: boolean;
 
   @IsOptional()
+  @IsBoolean()
+  isFeatured?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  newArrival?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  bestSeller?: boolean;
+
+  @IsOptional()
   @IsEnum(PublishStatus)
   publishStatus?: PublishStatus;
 
   @IsOptional()
   @Type(() => Number)
-  @IsNumber()
-  brandId?: number;
-
-  @IsOptional()
-  @Type(() => Number)
   @IsInt()
   warehouseId?: number | null;
+
 
   @IsOptional()
   @Type(() => Number)

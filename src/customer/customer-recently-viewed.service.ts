@@ -282,8 +282,6 @@ export class CustomerRecentlyViewedService {
         'variants.images',
         'variants.productVariantOffers',
         'productOffers',
-        'brand',
-        'brand.brandOffers',
         'category',
         'reviews',
       ],

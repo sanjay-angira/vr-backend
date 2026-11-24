@@ -4,7 +4,6 @@ export async function migrateWarehouses(dataSource: DataSource): Promise<void> {
   await dataSource.query(`
     CREATE TABLE IF NOT EXISTS public.warehouses (
       id SERIAL PRIMARY KEY,
-      "brandId" integer NOT NULL,
       name varchar(120) NOT NULL,
       "contactName" varchar(120) NOT NULL,
       email varchar(254) NOT NULL,
@@ -29,22 +28,20 @@ export async function migrateWarehouses(dataSource: DataSource): Promise<void> {
       "isDefault" boolean NOT NULL DEFAULT false,
       "isActive" boolean NOT NULL DEFAULT true,
       "createdAt" timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      "updatedAt" timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      CONSTRAINT "FK_warehouses_brand" FOREIGN KEY ("brandId")
-        REFERENCES public.brands(id) ON DELETE RESTRICT
+      "updatedAt" timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
     )
   `);
   await dataSource.query(`
-    CREATE INDEX IF NOT EXISTS "IDX_warehouses_brand_id"
-      ON public.warehouses ("brandId")
+    CREATE INDEX IF NOT EXISTS "IDX_warehouses_name_pin"
+      ON public.warehouses (name, pincode)
   `);
   await dataSource.query(`
-    CREATE UNIQUE INDEX IF NOT EXISTS "UQ_warehouses_brand_name_pin"
-      ON public.warehouses ("brandId", name, pincode)
+    CREATE UNIQUE INDEX IF NOT EXISTS "UQ_warehouses_name_pin"
+      ON public.warehouses (name, pincode)
   `);
   await dataSource.query(`
-    CREATE UNIQUE INDEX IF NOT EXISTS "UQ_warehouses_brand_default"
-      ON public.warehouses ("brandId") WHERE "isDefault" = true
+    CREATE UNIQUE INDEX IF NOT EXISTS "UQ_warehouses_default"
+      ON public.warehouses ("isDefault") WHERE "isDefault" = true
   `);
   await dataSource.query(`
     DO $$ BEGIN

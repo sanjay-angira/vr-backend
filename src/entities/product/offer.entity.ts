@@ -10,7 +10,6 @@ import {
 import { Category } from '../productCategory/category.entity';
 import { Product } from './product.entity';
 import { ProductVariant } from './product-variants.entity';
-import { Brand } from './brand.entity';
 import { CmsSection } from '../CMS/cmsSettings.entity';
 
 export enum DiscountType {
@@ -56,9 +55,6 @@ export class Offer {
 
   @ManyToMany(() => Category, (category: Category) => category.categoryOffers)
   categories!: Category[];
-
-  @ManyToMany(() => Brand, (brand: Brand) => brand.brandOffers)
-  brands!: Brand[];
 
   @ManyToMany(() => Product, (product: Product) => product.productOffers)
   products!: Product[];

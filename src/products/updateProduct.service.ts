@@ -16,9 +16,9 @@ import { UpdateProductVariantService } from './updateProductVariant.service';
 import { UpdateProductSeoService } from './updatedProductSeo.service';
 import { Tags } from 'src/entities/product/tags.entity';
 import { Category } from 'src/entities/productCategory/category.entity';
-import { Brand } from 'src/entities/product/brand.entity';
 import { ProductAttribute } from 'src/entities/product/product-attribute.entity';
 import { Attribute } from 'src/entities/product/attribute.entity';
+import { UtilityService } from 'src/commonServices/utility.service';
 import {
   Warehouse,
   WarehouseRegistrationStatus,
@@ -35,14 +35,13 @@ export class UpdateProductService {
     private readonly tagRepo: Repository<Tags>,
     @InjectRepository(Category)
     private readonly categoryRepo: Repository<Category>,
-    @InjectRepository(Brand)
-    private readonly brandRepo: Repository<Brand>,
-    @InjectRepository(Warehouse)
-    private readonly warehouseRepo: Repository<Warehouse>,
     @InjectRepository(ProductAttribute)
     private readonly productAttributeRepo: Repository<ProductAttribute>,
     @InjectRepository(Attribute)
     private readonly attributeRepo: Repository<Attribute>,
+    @InjectRepository(Warehouse)
+    private readonly warehouseRepo: Repository<Warehouse>,
+    private readonly utilityService: UtilityService,
     private readonly productSeoService: UpdateProductSeoService,
     private readonly updateProductVariantService: UpdateProductVariantService,
   ) {}
@@ -59,7 +58,7 @@ export class UpdateProductService {
       if (updateProductDto.frequentlyBoughtTogether !== undefined) {
         relationsToLoad.push('frequentlyBoughtTogether');
       }
-      relationsToLoad.push('brand', 'warehouse');
+      relationsToLoad.push('warehouse');
 
       const product = await this.productRepo.findOne({
         where: { id },
@@ -81,11 +80,22 @@ export class UpdateProductService {
       /* ================= BASIC UPDATE ================= */
 
       product.productName = updateProductDto.productName ?? product.productName;
-      product.productSlug = updateProductDto.productSlug ?? product.productSlug;
+      if (updateProductDto.productName !== undefined || !product.productSlug) {
+        product.productSlug = await this.generateUniqueProductSlug(
+          product.productName || '',
+          id,
+        );
+      }
       product.shortDescription =
         updateProductDto.shortDescription ?? product.shortDescription;
       product.description = updateProductDto.description ?? product.description;
       product.isActive = updateProductDto.isActive ?? product.isActive;
+      product.isFeatured =
+        updateProductDto.isFeatured ?? product.isFeatured;
+      product.newArrival =
+        updateProductDto.newArrival ?? product.newArrival;
+      product.bestSeller =
+        updateProductDto.bestSeller ?? product.bestSeller;
       product.publishStatus =
         updateProductDto.publishStatus ?? product.publishStatus;
 
@@ -99,57 +109,26 @@ export class UpdateProductService {
         product.category = category;
       }
 
-      /* ================= BRAND ================= */
-      let brandId = product.brand?.id;
-      if (updateProductDto.brandId) {
-        const brand = await this.brandRepo.findOne({
-          where: { id: updateProductDto.brandId },
-          loadEagerRelations: false,
-        });
-
-        if (!brand) throw new NotFoundException('Brand not found');
-        product.brand = brand;
-        brandId = brand.id;
-      } else if (updateProductDto.brandId === null) {
-        product.brand = null;
-        product.warehouse = null;
-        product.warehouseId = null;
-        brandId = undefined;
-      }
-
       if (updateProductDto.warehouseId !== undefined) {
         if (updateProductDto.warehouseId === null) {
           product.warehouse = null;
           product.warehouseId = null;
-          if (brandId) {
-            throw new BadRequestException(
-              'Select a pickup warehouse for the selected brand',
-            );
-          }
         } else {
           const warehouse = await this.warehouseRepo.findOne({
             where: {
               id: updateProductDto.warehouseId,
-              brandId,
               isActive: true,
               registrationStatus: WarehouseRegistrationStatus.REGISTERED,
             },
           });
           if (!warehouse) {
             throw new BadRequestException(
-              'Select an active, registered pickup warehouse for this brand',
+              'Select an active, registered pickup warehouse',
             );
           }
           product.warehouse = warehouse;
           product.warehouseId = warehouse.id;
         }
-      } else if (
-        updateProductDto.brandId !== undefined &&
-        product.warehouse?.brandId !== brandId
-      ) {
-        throw new BadRequestException(
-          'Select a pickup warehouse for the selected brand',
-        );
       }
 
       /* ================= UPDATE PRODUCT OFFERS ================= */
@@ -256,7 +235,6 @@ export class UpdateProductService {
         await this.updateProductVariantService.updateVariants(
           savedProduct,
           updateProductDto.variants,
-          this.offerRepo,
         );
       }
 
@@ -269,13 +247,11 @@ export class UpdateProductService {
         where: { id: product.id },
         relations: [
           'category',
-          'brand',
           'warehouse',
           'variants',
           'variants.images',
           'variants.variantAttributes',
           'variants.variantAttributes.attribute',
-          'variants.productVariantOffers',
           'seo',
           'productTags',
           'productOffers',
@@ -296,5 +272,29 @@ export class UpdateProductService {
     } catch (error) {
       throw error;
     }
+  }
+
+  private async generateUniqueProductSlug(
+    productName: string,
+    excludeId?: number,
+  ): Promise<string> {
+    const baseSlug = this.utilityService.createSlug(productName) || 'product';
+    let slug = baseSlug;
+    let suffix = 2;
+    let existing = await this.productRepo.findOne({
+      where: { productSlug: slug },
+      select: { id: true },
+    });
+
+    while (existing && existing.id !== excludeId) {
+      slug = `${baseSlug}-${suffix}`;
+      suffix += 1;
+      existing = await this.productRepo.findOne({
+        where: { productSlug: slug },
+        select: { id: true },
+      });
+    }
+
+    return slug;
   }
 }

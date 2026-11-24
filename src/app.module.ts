@@ -15,7 +15,6 @@ import { ModulesModule } from './modules/modules.module';
 import { RolesModule } from './roles/roles.module';
 import { BlogModule } from './blog/blog.module';
 import { OffersModule } from './offers/offers.module';
-import { BrandsModule } from './brands/brands.module';
 import { FaqModule } from './faq/faq.module';
 import { CouponsModule } from './coupons/coupons.module';
 import { ProductTagsModule } from './tags/product-tags.module';
@@ -39,6 +38,8 @@ import { migrateCategorySeoFields } from './commonServices/migrate-category-seo-
 import { migrateProductVariantPackageDimensions } from './commonServices/migrate-product-variant-package-dimensions';
 import { migrateRequiredVariantSkus } from './commonServices/migrate-required-variant-skus';
 import { migrateWarehouses } from './commonServices/migrate-warehouses';
+import { migrateProductStatusColumns } from './commonServices/migrate-product-status-columns';
+import { migrateBrandRemoval } from './commonServices/migrate-brand-removal';
 import { CommonModule } from './commonServices/common.module';
 import { AdminAuthGuard } from './commonServices/admin-auth.guard';
 
@@ -76,7 +77,7 @@ import { AdminAuthGuard } from './commonServices/admin-auth.guard';
         // Safety net if main.ts prep was skipped (e.g. tests).
         const prep = new DataSource({
           ...options,
-          synchronize: false,
+          synchronize: true,
           entities: [],
           migrations: [],
           subscribers: [],
@@ -91,6 +92,8 @@ import { AdminAuthGuard } from './commonServices/admin-auth.guard';
           await migrateCategorySeoFields(prep);
           await migrateProductVariantPackageDimensions(prep);
           await migrateRequiredVariantSkus(prep);
+          await migrateProductStatusColumns(prep);
+          await migrateBrandRemoval(prep);
           await migrateWarehouses(prep);
         } finally {
           await prep.destroy();
@@ -116,7 +119,6 @@ import { AdminAuthGuard } from './commonServices/admin-auth.guard';
     RolesModule,
     BlogModule,
     OffersModule,
-    BrandsModule,
     FaqModule,
     CouponsModule,
     ProductTagsModule,

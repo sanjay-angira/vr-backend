@@ -31,7 +31,7 @@ export type AvailableOfferView = {
   offerSlug: string;
   discountType: DiscountType;
   discountValue: number;
-  sources: Array<'product' | 'variant' | 'category' | 'brand'>;
+  sources: Array<'product' | 'variant' | 'category'>;
   sellingPrice: number | null;
   finalPrice: number | null;
   totalDiscount: number;
@@ -44,7 +44,7 @@ export type AppliedOfferView = {
   offerSlug: string;
   discountType: DiscountType;
   discountValue: number;
-  sources: Array<'product' | 'variant' | 'category' | 'brand'>;
+  sources: Array<'product' | 'variant' | 'category'>;
 };
 
 type BestAppliedOfferResult = AppliedOfferView & {
@@ -98,19 +98,16 @@ export class OfferPricingService {
   getMergedActiveOffers({
     productOffers = [],
     variantOffers = [],
-    brandOffers = [],
     category = null,
   }: {
     productOffers?: Offer[];
     variantOffers?: Offer[];
-    brandOffers?: Offer[];
     category?: Category | null;
   }) {
     const merged = new Map<number, { offer: Offer; sources: string[] }>();
 
     this.addOffersToMergedMap(merged, productOffers, 'product');
     this.addOffersToMergedMap(merged, variantOffers, 'variant');
-    this.addOffersToMergedMap(merged, brandOffers, 'brand');
 
     let currentCategory: Category | null = category;
     while (currentCategory) {
@@ -192,7 +189,6 @@ export class OfferPricingService {
     const mergedActiveOffers = this.getMergedActiveOffers({
       productOffers: product.productOffers || [],
       variantOffers: variant.productVariantOffers || [],
-      brandOffers: product.brand?.brandOffers || [],
       category,
     });
 
@@ -213,7 +209,6 @@ export class OfferPricingService {
     const mergedActiveOffers = this.getMergedActiveOffers({
       productOffers: product.productOffers || [],
       variantOffers: variant.productVariantOffers || [],
-      brandOffers: product.brand?.brandOffers || [],
       category,
     });
 
@@ -484,7 +479,7 @@ export class OfferPricingService {
   private addOffersToMergedMap(
     merged: Map<number, { offer: Offer; sources: string[] }>,
     offers: Offer[],
-    source: 'product' | 'variant' | 'category' | 'brand',
+    source: 'product' | 'variant' | 'category',
   ) {
     for (const offer of offers || []) {
       if (!this.isOfferApplicable(offer)) {

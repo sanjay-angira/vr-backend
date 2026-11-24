@@ -16,7 +16,6 @@ import { Tags } from './tags.entity';
 import { Review } from './review.entity';
 import { Category } from '../productCategory/category.entity';
 import { Offer } from './offer.entity';
-import { Brand } from './brand.entity';
 import { Faq } from './faq.entity';
 import { ProductSeo } from './product-seo.entity';
 import { CmsSection } from '../CMS/cmsSettings.entity';
@@ -49,14 +48,20 @@ export class Product {
   @Column({ type: 'boolean', default: true, nullable: false })
   isActive!: boolean;
 
+  @Column({ type: 'boolean', default: false, nullable: false })
+  isFeatured!: boolean;
+
+  @Column({ type: 'boolean', default: false, nullable: false })
+  newArrival!: boolean;
+
+  @Column({ type: 'boolean', default: false, nullable: false })
+  bestSeller!: boolean;
+
   @Column({ type: 'enum', enum: PublishStatus, default: PublishStatus.DRAFT })
   publishStatus!: PublishStatus;
 
   @ManyToOne(() => Category, { eager: true })
   category!: Category;
-
-  @ManyToOne(() => Brand, { eager: true, nullable: true, onDelete: 'CASCADE' })
-  brand!: Brand | null;
 
   @Column({ name: 'warehouseId', type: 'int', nullable: true })
   warehouseId!: number | null;
