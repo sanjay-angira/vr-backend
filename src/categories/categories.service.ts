@@ -34,17 +34,22 @@ export class CategoriesService {
       offerIds,
       parentId,
       categoryName,
-      categorySlug,
       shortDescription,
       description,
       isActive,
       image,
+      image3x2,
+      desktopBanner,
+      tabletBanner,
+      mobileBanner,
+      video,
       seo,
       publishStatus,
       mobileImage,
       bannerImage,
       imageAltText,
       showOnHomePage,
+      useAsHeroBanner,
     } = createCategoryDto;
     try {
       let offers: Offer[] = [];
@@ -64,16 +69,22 @@ export class CategoriesService {
 
       const category = this.categoryRepo.create({
         categoryName,
-        categorySlug,
+        categorySlug: await this.generateUniqueCategorySlug(categoryName),
         shortDescription,
         description,
         isActive: isActive ?? true,
         publishStatus,
         image: image ?? null,
+        image3x2: image3x2 ?? null,
+        desktopBanner: desktopBanner ?? bannerImage ?? null,
+        tabletBanner: tabletBanner ?? null,
+        mobileBanner: mobileBanner ?? mobileImage ?? null,
+        video: video ?? null,
         imageAltText: imageAltText ?? null,
-        mobileImage: mobileImage ?? null,
-        bannerImage: bannerImage ?? null,
+        mobileImage: mobileBanner ?? mobileImage ?? null,
+        bannerImage: desktopBanner ?? bannerImage ?? null,
         showOnHomePage,
+        useAsHeroBanner: useAsHeroBanner ?? false,
         parent,
         categoryOffers: offers,
       });
@@ -154,17 +165,22 @@ export class CategoriesService {
       offerIds,
       parentId,
       categoryName,
-      categorySlug,
       shortDescription,
       description,
       isActive,
       image,
+      image3x2,
+      desktopBanner,
+      tabletBanner,
+      mobileBanner,
+      video,
       seo,
       publishStatus,
       mobileImage,
       bannerImage,
       imageAltText,
       showOnHomePage,
+      useAsHeroBanner,
     } = updateCategoryDto;
     try {
       const category = await this.categoryRepo.findOne({
@@ -186,7 +202,12 @@ export class CategoriesService {
       }
 
       if (categoryName !== undefined) category.categoryName = categoryName;
-      if (categorySlug !== undefined) category.categorySlug = categorySlug;
+      if (categoryName !== undefined || !category.categorySlug) {
+        category.categorySlug = await this.generateUniqueCategorySlug(
+          categoryName ?? category.categoryName,
+          id,
+        );
+      }
       if (shortDescription !== undefined)
         category.shortDescription = shortDescription;
       if (description !== undefined) category.description = description;
@@ -194,10 +215,27 @@ export class CategoriesService {
       if (publishStatus !== undefined) category.publishStatus = publishStatus;
       if (showOnHomePage !== undefined)
         category.showOnHomePage = showOnHomePage;
+      if (useAsHeroBanner !== undefined)
+        category.useAsHeroBanner = useAsHeroBanner;
       if (image !== undefined) category.image = image;
+      if (image3x2 !== undefined) category.image3x2 = image3x2;
+      if (desktopBanner !== undefined) {
+        category.desktopBanner = desktopBanner;
+        category.bannerImage = desktopBanner;
+      } else if (bannerImage !== undefined) {
+        category.desktopBanner = bannerImage;
+        category.bannerImage = bannerImage;
+      }
+      if (tabletBanner !== undefined) category.tabletBanner = tabletBanner;
+      if (mobileBanner !== undefined) {
+        category.mobileBanner = mobileBanner;
+        category.mobileImage = mobileBanner;
+      } else if (mobileImage !== undefined) {
+        category.mobileBanner = mobileImage;
+        category.mobileImage = mobileImage;
+      }
+      if (video !== undefined) category.video = video;
       if (imageAltText !== undefined) category.imageAltText = imageAltText;
-      if (mobileImage !== undefined) category.mobileImage = mobileImage;
-      if (bannerImage !== undefined) category.bannerImage = bannerImage;
 
       if (seo) {
         if (category.seo) {
@@ -374,5 +412,29 @@ export class CategoriesService {
       order: { id: 'ASC' },
     });
     return successResponse(category, 'Categories fetched');
+  }
+
+  private async generateUniqueCategorySlug(
+    categoryName: string,
+    excludeId?: number,
+  ): Promise<string> {
+    const baseSlug = this.utilityService.createSlug(categoryName) || 'category';
+    let slug = baseSlug;
+    let suffix = 2;
+    let existing = await this.categoryRepo.findOne({
+      where: { categorySlug: slug },
+      select: { id: true },
+    });
+
+    while (existing && existing.id !== excludeId) {
+      slug = `${baseSlug}-${suffix}`;
+      suffix += 1;
+      existing = await this.categoryRepo.findOne({
+        where: { categorySlug: slug },
+        select: { id: true },
+      });
+    }
+
+    return slug;
   }
 }

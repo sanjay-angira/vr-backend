@@ -102,6 +102,11 @@ export class CategorySeoDto {
   @IsOptional()
   @IsString()
   schemaType?: string;
+
+  @ApiPropertyOptional({ description: 'SEO content for the category page' })
+  @IsOptional()
+  @IsString()
+  seoContent?: string;
 }
 
 export class CreateCategoryDto {
@@ -109,11 +114,6 @@ export class CreateCategoryDto {
   @IsNotEmpty()
   @IsString()
   categoryName!: string;
-
-  @ApiProperty({ example: 'spices' })
-  @IsNotEmpty()
-  @IsString()
-  categorySlug!: string;
 
   @ApiPropertyOptional({ example: 'A short summary of this category.' })
   @IsOptional()
@@ -147,6 +147,31 @@ export class CreateCategoryDto {
   @IsOptional()
   @IsString()
   image?: string;
+
+  @ApiPropertyOptional({ description: '3:2 featured category image URL' })
+  @IsOptional()
+  @IsString()
+  image3x2?: string;
+
+  @ApiPropertyOptional({ description: 'Desktop category banner uploaded as WebP' })
+  @IsOptional()
+  @IsString()
+  desktopBanner?: string;
+
+  @ApiPropertyOptional({ description: 'Tablet category banner uploaded as WebP' })
+  @IsOptional()
+  @IsString()
+  tabletBanner?: string;
+
+  @ApiPropertyOptional({ description: 'Mobile category banner uploaded as WebP' })
+  @IsOptional()
+  @IsString()
+  mobileBanner?: string;
+
+  @ApiPropertyOptional({ description: 'Category video URL' })
+  @IsOptional()
+  @IsString()
+  video?: string;
 
   @ApiPropertyOptional({
     enum: ['draft', 'published', 'scheduled'],
@@ -182,6 +207,11 @@ export class CreateCategoryDto {
   @IsBoolean()
   showOnHomePage?: boolean;
 
+  @ApiPropertyOptional({ default: false })
+  @IsOptional()
+  @IsBoolean()
+  useAsHeroBanner?: boolean;
+
   @ApiPropertyOptional({ type: [Number], example: [1, 2] })
   @IsOptional()
   @IsArray()
@@ -200,11 +230,6 @@ export class UpdateCategoryDto {
   @IsOptional()
   @IsString()
   categoryName?: string;
-
-  @ApiPropertyOptional({ example: 'spices' })
-  @IsOptional()
-  @IsString()
-  categorySlug?: string;
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -233,6 +258,31 @@ export class UpdateCategoryDto {
   @IsOptional()
   @IsString()
   image?: string | null;
+
+  @ApiPropertyOptional({ description: '3:2 featured category image URL' })
+  @IsOptional()
+  @IsString()
+  image3x2?: string | null;
+
+  @ApiPropertyOptional({ description: 'Desktop category banner uploaded as WebP' })
+  @IsOptional()
+  @IsString()
+  desktopBanner?: string | null;
+
+  @ApiPropertyOptional({ description: 'Tablet category banner uploaded as WebP' })
+  @IsOptional()
+  @IsString()
+  tabletBanner?: string | null;
+
+  @ApiPropertyOptional({ description: 'Mobile category banner uploaded as WebP' })
+  @IsOptional()
+  @IsString()
+  mobileBanner?: string | null;
+
+  @ApiPropertyOptional({ description: 'Category video URL' })
+  @IsOptional()
+  @IsString()
+  video?: string | null;
 
   @ApiPropertyOptional({ type: [Number] })
   @IsOptional()
@@ -269,6 +319,11 @@ export class UpdateCategoryDto {
   @IsOptional()
   @IsBoolean()
   showOnHomePage?: boolean;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  useAsHeroBanner?: boolean;
 
   @ApiPropertyOptional({ type: CategorySeoDto })
   @IsOptional()

@@ -9,6 +9,12 @@ describe('migrateCategorySeoFields', () => {
     await migrateCategorySeoFields(dataSource);
 
     expect(query).toHaveBeenCalledWith(
+      expect.stringContaining('ADD COLUMN IF NOT EXISTS "metaKeywords" text'),
+    );
+    expect(query).toHaveBeenCalledWith(
+      expect.stringContaining('ADD COLUMN IF NOT EXISTS "seoContent" text'),
+    );
+    expect(query).toHaveBeenCalledWith(
       expect.stringContaining('ADD COLUMN IF NOT EXISTS "secondaryKeywords" jsonb'),
     );
     expect(query).toHaveBeenCalledWith(

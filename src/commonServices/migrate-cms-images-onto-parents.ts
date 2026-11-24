@@ -86,11 +86,6 @@ export async function migrateCmsImagesOntoParents(
     // ignore
   }
   try {
-    await dataSource.query(`ALTER TABLE categories DROP COLUMN IF EXISTS video`);
-  } catch {
-    // ignore
-  }
-  try {
     await dataSource.query(`ALTER TABLE categories DROP COLUMN IF EXISTS icon`);
   } catch {
     // ignore

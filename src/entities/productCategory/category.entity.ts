@@ -32,6 +32,21 @@ export class Category {
   @Column({ type: 'varchar', nullable: true })
   description!: string;
 
+  @Column({ type: 'varchar', length: 2048, nullable: true })
+  desktopBanner!: string | null;
+
+  @Column({ type: 'varchar', length: 2048, nullable: true })
+  tabletBanner!: string | null;
+
+  @Column({ type: 'varchar', length: 2048, nullable: true })
+  mobileBanner!: string | null;
+
+  @Column({ type: 'varchar', length: 2048, nullable: true })
+  image3x2!: string | null;
+
+  @Column({ type: 'varchar', length: 2048, nullable: true })
+  video!: string | null;
+
   @Column({
     type: 'enum',
     enum: ['draft', 'published', 'scheduled'],
@@ -59,6 +74,9 @@ export class Category {
 
   @Column({ type: 'boolean', default: false })
   showOnHomePage!: boolean;
+
+  @Column({ type: 'boolean', default: false })
+  useAsHeroBanner!: boolean;
 
   @OneToOne(() => CategorySeo, (seo) => seo.category, {
     cascade: true,

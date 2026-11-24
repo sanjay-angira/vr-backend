@@ -57,6 +57,9 @@ export class CategorySeo {
   @Column({ type: 'varchar', length: 50, default: 'CollectionPage' })
   schemaType!: string;
 
+  @Column({ type: 'text', nullable: true })
+  seoContent!: string | null;
+
   // Retained for compatibility with existing category SEO clients.
   @Column({ type: 'varchar', nullable: true })
   metaRobots!: string; // e.g. 'index, follow'

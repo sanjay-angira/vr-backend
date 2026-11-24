@@ -5,6 +5,7 @@ import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { DataSource } from 'typeorm';
 import { renameProductImageUrlColumns } from './commonServices/rename-product-image-url';
 import { migrateCmsImagesOntoParents } from './commonServices/migrate-cms-images-onto-parents';
+import { migrateCategoryResponsiveFields } from './commonServices/migrate-category-responsive-fields';
 import { removeHeaderCms } from './commonServices/remove-header-cms';
 import { removeUnusedFooterCms } from './commonServices/remove-unused-footer-cms';
 import { migrateProductImagesToVariants } from './commonServices/migrate-product-images-to-variants';
@@ -32,6 +33,7 @@ async function prepareImageUrlColumns() {
     await renameProductImageUrlColumns(prep);
     await migrateProductImagesToVariants(prep);
     await migrateCmsImagesOntoParents(prep);
+    await migrateCategoryResponsiveFields(prep);
     await removeHeaderCms(prep);
     await removeUnusedFooterCms(prep);
     await migrateCategorySeoFields(prep);
