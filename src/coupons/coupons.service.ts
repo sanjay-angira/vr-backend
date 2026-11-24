@@ -19,18 +19,15 @@ export class CouponsService {
     private readonly userRepository: Repository<User>,
   ) {}
 
-  private toDateKey(value: Date | string): string {
-    if (typeof value === 'string') {
-      return value.slice(0, 10);
-    }
-    return value.toISOString().slice(0, 10);
-  }
-
   private isWithinValidity(coupon: Coupon): boolean {
-    const today = new Date().toISOString().slice(0, 10);
-    const start = this.toDateKey(coupon.startDate);
-    const end = this.toDateKey(coupon.endDate);
-    return start <= today && end >= today;
+    if (!coupon.timeBased) return true;
+    if (!coupon.startDate || !coupon.endDate) return false;
+
+    const now = Date.now();
+    return (
+      now >= new Date(coupon.startDate).getTime() &&
+      now <= new Date(coupon.endDate).getTime()
+    );
   }
 
   /** Keeps unique indexes free after soft-delete without touching order snapshots. */
@@ -55,8 +52,13 @@ export class CouponsService {
       coupon.image = createCouponDto.image?.trim() || null;
       coupon.discountType = createCouponDto.discountType;
       coupon.discountValue = createCouponDto.discountValue;
-      coupon.startDate = new Date(createCouponDto.startDate);
-      coupon.endDate = new Date(createCouponDto.endDate);
+      coupon.timeBased = createCouponDto.timeBased ?? true;
+      coupon.startDate = coupon.timeBased
+        ? new Date(createCouponDto.startDate!)
+        : null;
+      coupon.endDate = coupon.timeBased
+        ? new Date(createCouponDto.endDate!)
+        : null;
       coupon.isActive = createCouponDto.isActive ?? true;
       coupon.isUserSpecific = createCouponDto.isUserSpecific ?? false;
       coupon.isDeleted = false;
@@ -145,14 +147,17 @@ export class CouponsService {
         'coupon.discountValue',
         'coupon.startDate',
         'coupon.endDate',
+        'coupon.timeBased',
       ])
       .where('coupon.isDeleted = :isDeleted', { isDeleted: false })
       .andWhere('coupon.isActive = :isActive', { isActive: true })
       .andWhere('coupon.isUserSpecific = :isUserSpecific', {
         isUserSpecific: false,
       })
-      .andWhere('coupon.startDate <= CURRENT_DATE')
-      .andWhere('coupon.endDate >= CURRENT_DATE')
+      .andWhere(
+        '(coupon.timeBased = :timeBased OR (coupon.startDate <= CURRENT_TIMESTAMP AND coupon.endDate >= CURRENT_TIMESTAMP))',
+        { timeBased: false },
+      )
       .orderBy('coupon.discountValue', 'DESC')
       .skip((pageNumber - 1) * pageSize)
       .take(pageSize)
@@ -241,12 +246,28 @@ export class CouponsService {
         coupon.discountValue = updateCouponDto.discountValue;
       }
 
-      if (updateCouponDto.startDate !== undefined) {
-        coupon.startDate = new Date(updateCouponDto.startDate);
-      }
-
-      if (updateCouponDto.endDate !== undefined) {
-        coupon.endDate = new Date(updateCouponDto.endDate);
+      const timeBased = updateCouponDto.timeBased ?? coupon.timeBased;
+      coupon.timeBased = timeBased;
+      if (timeBased) {
+        const startDate =
+          updateCouponDto.startDate !== undefined
+            ? new Date(updateCouponDto.startDate)
+            : coupon.startDate;
+        const endDate =
+          updateCouponDto.endDate !== undefined
+            ? new Date(updateCouponDto.endDate)
+            : coupon.endDate;
+        if (!startDate || !endDate) {
+          return errorResponse(
+            'Please provide start and end dates for a time-based coupon',
+            400,
+          );
+        }
+        coupon.startDate = startDate;
+        coupon.endDate = endDate;
+      } else {
+        coupon.startDate = null;
+        coupon.endDate = null;
       }
 
       if (updateCouponDto.isActive !== undefined) {

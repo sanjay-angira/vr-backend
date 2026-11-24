@@ -41,6 +41,8 @@ import { migrateRequiredVariantSkus } from './commonServices/migrate-required-va
 import { migrateWarehouses } from './commonServices/migrate-warehouses';
 import { migrateProductStatusColumns } from './commonServices/migrate-product-status-columns';
 import { migrateBrandRemoval } from './commonServices/migrate-brand-removal';
+import { migrateOfferResponsiveImages } from './commonServices/migrate-offer-responsive-images';
+import { migrateCouponTimeBased } from './commonServices/migrate-coupon-time-based';
 import { CommonModule } from './commonServices/common.module';
 import { AdminAuthGuard } from './commonServices/admin-auth.guard';
 
@@ -97,6 +99,8 @@ import { AdminAuthGuard } from './commonServices/admin-auth.guard';
           await migrateProductStatusColumns(prep);
           await migrateBrandRemoval(prep);
           await migrateWarehouses(prep);
+          await migrateOfferResponsiveImages(prep);
+          await migrateCouponTimeBased(prep);
         } finally {
           await prep.destroy();
         }

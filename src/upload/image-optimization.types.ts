@@ -11,7 +11,10 @@ export type ImageOptimizationType =
   | 'blog'
   | 'banner'
   | 'banner_mobile'
-  | 'category_mobile';
+  | 'category_mobile'
+  | 'offer_desktop'
+  | 'offer_tablet'
+  | 'offer_mobile';
 
 export type ImageOptimizationPreset = {
   type: ImageOptimizationType;
@@ -20,7 +23,7 @@ export type ImageOptimizationPreset = {
   webpQuality: number;
   /**
    * When true, upload stores a single WebP file (no original + size variants).
-   * Used for banner / blog / category. Product keeps multi-size pipeline.
+   * Used for banner / blog / category / offer. Product keeps multi-size pipeline.
    */
   webpOnly?: boolean;
 };
@@ -75,6 +78,27 @@ export const IMAGE_OPTIMIZATION_PRESETS: Record<
     folder: 'categories/mobile',
     widths: [800],
     webpQuality: 82,
+    webpOnly: true,
+  },
+  offer_desktop: {
+    type: 'offer_desktop',
+    folder: 'offers/desktop',
+    widths: [1920],
+    webpQuality: 85,
+    webpOnly: true,
+  },
+  offer_tablet: {
+    type: 'offer_tablet',
+    folder: 'offers/tablet',
+    widths: [1200],
+    webpQuality: 85,
+    webpOnly: true,
+  },
+  offer_mobile: {
+    type: 'offer_mobile',
+    folder: 'offers/mobile',
+    widths: [800],
+    webpQuality: 85,
     webpOnly: true,
   },
 };

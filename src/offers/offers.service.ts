@@ -38,17 +38,15 @@ export class OffersService {
       endDate,
       discountType,
       isActive,
-      offerSlug,
       timeBased,
-      image,
+      desktopImage,
+      tabletImage,
+      mobileImage,
+      useAsHeroBanner,
     } = createOfferDto;
 
     try {
-      if (
-        (timeBased && !startDate && !endDate) ||
-        (timeBased && !startDate) ||
-        (timeBased && !endDate)
-      ) {
+      if (timeBased && (!startDate || !endDate)) {
         throw new HttpException(
           'Please provide start and end date for time based offer',
           HttpStatus.BAD_REQUEST,
@@ -57,14 +55,17 @@ export class OffersService {
 
       const offerData = {
         offerName: offerName,
-        offerSlug: offerSlug,
-        image: image?.trim() || null,
+        offerSlug: await this.generateUniqueOfferSlug(offerName),
+        desktopImage: desktopImage?.trim() || null,
+        tabletImage: tabletImage?.trim() || null,
+        mobileImage: mobileImage?.trim() || null,
         discountValue: discountValue,
         discountType: discountType,
         timeBased: timeBased,
-        startDate: timeBased ? new Date(startDate) : undefined,
-        endDate: timeBased ? new Date(endDate) : undefined,
+        startDate: timeBased ? new Date(startDate!) : null,
+        endDate: timeBased ? new Date(endDate!) : null,
         isActive: isActive,
+        useAsHeroBanner: useAsHeroBanner ?? false,
       };
 
       const offer = this.offerRepository.create(offerData);
@@ -170,20 +171,18 @@ export class OffersService {
       endDate,
       discountType,
       isActive,
-      offerSlug,
       timeBased,
-      image,
+      desktopImage,
+      tabletImage,
+      mobileImage,
+      useAsHeroBanner,
     } = updateOfferDto;
 
     try {
       const offer = await this.offerRepository.findOne({ where: { id: id } });
       if (!offer) throw new NotFoundException('Offer not found');
 
-      if (
-        (timeBased && !startDate && !endDate) ||
-        (timeBased && !startDate) ||
-        (timeBased && !endDate)
-      ) {
+      if (timeBased && (!startDate || !endDate)) {
         throw new HttpException(
           'Please provide start and end date for time based offer',
           HttpStatus.BAD_REQUEST,
@@ -191,14 +190,25 @@ export class OffersService {
       }
 
       offer.offerName = offerName;
-      offer.offerSlug = offerSlug;
-      offer.image = image?.trim() || null;
+      offer.offerSlug = await this.generateUniqueOfferSlug(offerName, id);
+      if (desktopImage !== undefined) {
+        offer.desktopImage = desktopImage.trim() || null;
+      }
+      if (tabletImage !== undefined) {
+        offer.tabletImage = tabletImage.trim() || null;
+      }
+      if (mobileImage !== undefined) {
+        offer.mobileImage = mobileImage.trim() || null;
+      }
       offer.discountValue = discountValue;
       offer.discountType = discountType;
       offer.timeBased = timeBased;
-      offer.startDate = timeBased ? new Date(startDate) : null;
-      offer.endDate = timeBased ? new Date(endDate) : null;
+      offer.startDate = timeBased ? new Date(startDate!) : null;
+      offer.endDate = timeBased ? new Date(endDate!) : null;
       offer.isActive = isActive;
+      if (useAsHeroBanner !== undefined) {
+        offer.useAsHeroBanner = useAsHeroBanner;
+      }
 
       const savedOffer = await this.offerRepository.save(offer);
 
@@ -236,5 +246,29 @@ export class OffersService {
     } catch (error) {
       throw error;
     }
+  }
+
+  private async generateUniqueOfferSlug(
+    offerName: string,
+    excludeId?: number,
+  ): Promise<string> {
+    const baseSlug = this.utilityService.createSlug(offerName) || 'offer';
+    let slug = baseSlug;
+    let suffix = 2;
+    let existing = await this.offerRepository.findOne({
+      where: { offerSlug: slug },
+      select: { id: true },
+    });
+
+    while (existing && existing.id !== excludeId) {
+      slug = `${baseSlug}-${suffix}`;
+      suffix += 1;
+      existing = await this.offerRepository.findOne({
+        where: { offerSlug: slug },
+        select: { id: true },
+      });
+    }
+
+    return slug;
   }
 }

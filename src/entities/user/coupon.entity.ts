@@ -31,11 +31,14 @@ export class Coupon {
   @Column({ type: 'decimal', precision: 10, scale: 2 })
   discountValue!: number;
 
-  @Column({ type: 'date' })
-  startDate!: Date;
+  @Column({ type: 'timestamptz', nullable: true })
+  startDate!: Date | null;
 
-  @Column({ type: 'date' })
-  endDate!: Date;
+  @Column({ type: 'timestamptz', nullable: true })
+  endDate!: Date | null;
+
+  @Column({ default: true })
+  timeBased!: boolean;
 
   @Column({ default: true })
   isActive!: boolean;

@@ -6,6 +6,7 @@ import {
   IsBoolean,
   IsNumber,
   IsEnum,
+  Min,
 } from 'class-validator';
 import { DiscountType } from '../entities/product/offer.entity';
 
@@ -15,15 +16,20 @@ export class CreateOfferDto {
   @IsNotEmpty()
   offerName: string;
 
-  @ApiProperty()
+  @ApiPropertyOptional()
   @IsString()
-  @IsNotEmpty()
-  offerSlug: string;
+  @IsOptional()
+  desktopImage?: string;
 
   @ApiPropertyOptional()
   @IsString()
   @IsOptional()
-  image?: string;
+  tabletImage?: string;
+
+  @ApiPropertyOptional()
+  @IsString()
+  @IsOptional()
+  mobileImage?: string;
 
   @ApiProperty({ enum: DiscountType })
   @IsEnum(DiscountType)
@@ -32,6 +38,7 @@ export class CreateOfferDto {
 
   @ApiProperty()
   @IsNumber()
+  @Min(0.01)
   @IsNotEmpty()
   discountValue: number;
 
@@ -54,6 +61,11 @@ export class CreateOfferDto {
   @IsBoolean()
   @IsNotEmpty()
   isActive: boolean;
+
+  @ApiPropertyOptional({ default: false })
+  @IsBoolean()
+  @IsOptional()
+  useAsHeroBanner?: boolean;
 }
 
 export class UpdateOfferDto {
@@ -62,15 +74,20 @@ export class UpdateOfferDto {
   @IsNotEmpty()
   offerName: string;
 
-  @ApiProperty()
+  @ApiPropertyOptional()
   @IsString()
-  @IsNotEmpty()
-  offerSlug: string;
+  @IsOptional()
+  desktopImage?: string;
 
   @ApiPropertyOptional()
   @IsString()
   @IsOptional()
-  image?: string;
+  tabletImage?: string;
+
+  @ApiPropertyOptional()
+  @IsString()
+  @IsOptional()
+  mobileImage?: string;
 
   @ApiProperty({ enum: DiscountType })
   @IsEnum(DiscountType)
@@ -79,6 +96,7 @@ export class UpdateOfferDto {
 
   @ApiProperty()
   @IsNumber()
+  @Min(0.01)
   @IsNotEmpty()
   discountValue: number;
 
@@ -101,6 +119,11 @@ export class UpdateOfferDto {
   @IsBoolean()
   @IsNotEmpty()
   isActive: boolean;
+
+  @ApiPropertyOptional({ default: false })
+  @IsBoolean()
+  @IsOptional()
+  useAsHeroBanner?: boolean;
 }
 
 export class OfferResponseDto {
@@ -114,7 +137,13 @@ export class OfferResponseDto {
   offerSlug: string;
 
   @ApiPropertyOptional()
-  image?: string | null;
+  desktopImage?: string | null;
+
+  @ApiPropertyOptional()
+  tabletImage?: string | null;
+
+  @ApiPropertyOptional()
+  mobileImage?: string | null;
 
   @ApiProperty({ enum: DiscountType })
   discountType: DiscountType;
@@ -130,6 +159,9 @@ export class OfferResponseDto {
 
   @ApiProperty()
   isActive: boolean;
+
+  @ApiProperty()
+  useAsHeroBanner: boolean;
 
   @ApiProperty()
   createdAt: Date;

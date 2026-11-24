@@ -9,6 +9,7 @@ import {
   IsArray,
   IsDateString,
   IsEnum,
+  ValidateIf,
 } from 'class-validator';
 import { DiscountType } from '../entities/user/coupon.entity';
 
@@ -44,19 +45,29 @@ export class CreateCouponDto {
   @IsNumber()
   discountValue!: number;
 
-  @ApiProperty({
+  @ApiPropertyOptional({
     description: 'Start date of coupon validity',
     example: '2025-12-05',
   })
+  @ValidateIf((coupon: CreateCouponDto) => coupon.timeBased !== false)
   @IsDateString()
-  startDate!: string;
+  startDate?: string;
 
-  @ApiProperty({
+  @ApiPropertyOptional({
     description: 'End date of coupon validity',
     example: '2025-12-30',
   })
+  @ValidateIf((coupon: CreateCouponDto) => coupon.timeBased !== false)
   @IsDateString()
-  endDate!: string;
+  endDate?: string;
+
+  @ApiPropertyOptional({
+    description: 'Whether the coupon has a date validity period',
+    default: true,
+  })
+  @IsBoolean()
+  @IsOptional()
+  timeBased?: boolean;
 
   @ApiPropertyOptional({
     description: 'Whether the coupon is active',
@@ -134,6 +145,13 @@ export class UpdateCouponDto {
   @IsDateString()
   @IsOptional()
   endDate?: string;
+
+  @ApiPropertyOptional({
+    description: 'Whether the coupon has a date validity period',
+  })
+  @IsBoolean()
+  @IsOptional()
+  timeBased?: boolean;
 
   @ApiPropertyOptional({
     description: 'Whether the coupon is active',

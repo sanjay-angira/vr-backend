@@ -128,18 +128,15 @@ export class CustomerService {
     return `VR-${stamp}-${rand}`;
   }
 
-  private toCouponDateKey(value: Date | string): string {
-    if (typeof value === 'string') {
-      return value.slice(0, 10);
-    }
-    return value.toISOString().slice(0, 10);
-  }
-
   private isCouponWithinValidity(coupon: Coupon): boolean {
-    const today = new Date().toISOString().slice(0, 10);
-    const start = this.toCouponDateKey(coupon.startDate);
-    const end = this.toCouponDateKey(coupon.endDate);
-    return start <= today && end >= today;
+    if (!coupon.timeBased) return true;
+    if (!coupon.startDate || !coupon.endDate) return false;
+
+    const now = Date.now();
+    return (
+      now >= new Date(coupon.startDate).getTime() &&
+      now <= new Date(coupon.endDate).getTime()
+    );
   }
 
   private isCouponUserAllowed(coupon: Coupon, userId?: number | null): boolean {
