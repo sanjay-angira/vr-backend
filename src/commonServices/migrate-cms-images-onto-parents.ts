@@ -56,7 +56,6 @@ export async function migrateCmsImagesOntoParents(
 ): Promise<void> {
   // Categories
   await ensureVarcharColumn(dataSource, 'categories', 'image');
-  await ensureVarcharColumn(dataSource, 'categories', 'imageAltText', 512);
   await ensureVarcharColumn(dataSource, 'categories', 'mobileImage');
   await ensureVarcharColumn(dataSource, 'categories', 'bannerImage');
   await ensureVarcharColumn(dataSource, 'categories', 'video');
@@ -64,9 +63,7 @@ export async function migrateCmsImagesOntoParents(
   if (await tableExists(dataSource, 'category_images')) {
     await dataSource.query(`
       UPDATE categories c
-      SET
-        image = COALESCE(NULLIF(c.image, ''), img."originalUrl"),
-        "imageAltText" = COALESCE(NULLIF(c."imageAltText", ''), img."altText")
+      SET image = COALESCE(NULLIF(c.image, ''), img."originalUrl")
       FROM (
         SELECT DISTINCT ON ("categoryId") *
         FROM category_images
@@ -77,6 +74,10 @@ export async function migrateCmsImagesOntoParents(
     `);
     console.log('[schema] categories: backfilled from category_images');
   }
+
+  await dataSource.query(
+    `ALTER TABLE categories DROP COLUMN IF EXISTS "imageAltText"`,
+  );
 
   // Drop deprecated category media columns.
   try {

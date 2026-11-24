@@ -197,11 +197,6 @@ export class CreateCategoryDto {
   @IsString()
   bannerImage?: string;
 
-  @ApiPropertyOptional({ description: 'Image alt text on category' })
-  @IsOptional()
-  @IsString()
-  imageAltText?: string;
-
   @ApiPropertyOptional()
   @IsOptional()
   @IsBoolean()
@@ -309,11 +304,6 @@ export class UpdateCategoryDto {
   @IsOptional()
   @IsString()
   bannerImage?: string | null;
-
-  @ApiPropertyOptional({ description: 'Image alt text on category' })
-  @IsOptional()
-  @IsString()
-  imageAltText?: string | null;
 
   @ApiPropertyOptional()
   @IsOptional()

@@ -50,7 +50,6 @@ export class CategoriesController {
           image3x2: 'https://example.com/images/incense-card.jpg',
           useAsHeroBanner: true,
           mobileImage: 'https://example.com/images/incense-mobile.jpg',
-          imageAltText: 'Premium organic incense sticks',
           showOnHomePage: true,
           offerIds: [1, 2],
           seo: {
@@ -111,7 +110,6 @@ export class CategoriesController {
           useAsHeroBanner: false,
           publishStatus: 'draft',
           mobileImage: 'https://example.com/images/incense-updated-mobile.jpg',
-          imageAltText: 'Updated incense alt text',
           showOnHomePage: false,
           offerIds: [3, 4],
           seo: {

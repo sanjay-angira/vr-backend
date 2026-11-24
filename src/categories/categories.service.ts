@@ -47,7 +47,6 @@ export class CategoriesService {
       publishStatus,
       mobileImage,
       bannerImage,
-      imageAltText,
       showOnHomePage,
       useAsHeroBanner,
     } = createCategoryDto;
@@ -80,7 +79,6 @@ export class CategoriesService {
         tabletBanner: tabletBanner ?? null,
         mobileBanner: mobileBanner ?? mobileImage ?? null,
         video: video ?? null,
-        imageAltText: imageAltText ?? null,
         mobileImage: mobileBanner ?? mobileImage ?? null,
         bannerImage: desktopBanner ?? bannerImage ?? null,
         showOnHomePage,
@@ -178,7 +176,6 @@ export class CategoriesService {
       publishStatus,
       mobileImage,
       bannerImage,
-      imageAltText,
       showOnHomePage,
       useAsHeroBanner,
     } = updateCategoryDto;
@@ -235,7 +232,6 @@ export class CategoriesService {
         category.mobileImage = mobileImage;
       }
       if (video !== undefined) category.video = video;
-      if (imageAltText !== undefined) category.imageAltText = imageAltText;
 
       if (seo) {
         if (category.seo) {

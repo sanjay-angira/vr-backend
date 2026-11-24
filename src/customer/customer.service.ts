@@ -28,7 +28,6 @@ import {
 import { pickOptimizedImageUrl } from 'src/commonServices/image-url.util';
 import {
   bannerImageSource,
-  categoryImageAlt,
   categoryImageSource,
   categoryMobileImageSource,
   pickVariantCardImage,
@@ -437,7 +436,6 @@ export class CustomerService {
             400,
           ),
           bannerImage: category.bannerImage || null,
-          imageAlt: categoryImageAlt(category, category.categoryName),
           productCount,
           parentId: category.parent?.id ?? null,
           href: category.categorySlug

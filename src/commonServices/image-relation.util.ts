@@ -16,10 +16,6 @@ export function categoryMobileImageSource(category: Category) {
   return { originalUrl: url, url };
 }
 
-export function categoryImageAlt(category: Category, fallback = '') {
-  return category.imageAltText || fallback;
-}
-
 export function blogImageSource(blog: BlogPost) {
   const url = (blog.blogImage || '').trim();
   return { originalUrl: url, url };
