@@ -47,13 +47,6 @@ export class Category {
   @Column({ type: 'varchar', length: 2048, nullable: true })
   video!: string | null;
 
-  @Column({
-    type: 'enum',
-    enum: ['draft', 'published', 'scheduled'],
-    default: 'draft',
-  })
-  publishStatus!: string;
-
   /** Category image URL (uploaded as WebP). */
   @Column({ type: 'varchar', length: 2048, nullable: true })
   image!: string | null;

@@ -44,7 +44,6 @@ export class CategoriesService {
       mobileBanner,
       video,
       seo,
-      publishStatus,
       mobileImage,
       bannerImage,
       showOnHomePage,
@@ -72,7 +71,6 @@ export class CategoriesService {
         shortDescription,
         description,
         isActive: isActive ?? true,
-        publishStatus,
         image: image ?? null,
         image3x2: image3x2 ?? null,
         desktopBanner: desktopBanner ?? bannerImage ?? null,
@@ -173,7 +171,6 @@ export class CategoriesService {
       mobileBanner,
       video,
       seo,
-      publishStatus,
       mobileImage,
       bannerImage,
       showOnHomePage,
@@ -209,7 +206,6 @@ export class CategoriesService {
         category.shortDescription = shortDescription;
       if (description !== undefined) category.description = description;
       if (isActive !== undefined) category.isActive = isActive;
-      if (publishStatus !== undefined) category.publishStatus = publishStatus;
       if (showOnHomePage !== undefined)
         category.showOnHomePage = showOnHomePage;
       if (useAsHeroBanner !== undefined)

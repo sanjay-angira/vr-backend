@@ -119,9 +119,6 @@ export class CustomerHomepageService {
           'category.createdAt',
         ])
         .where('category.isActive = :isActive', { isActive: true })
-        .andWhere('category.publishStatus = :publishStatus', {
-          publishStatus: 'published',
-        })
         .andWhere('category.categorySlug IS NOT NULL')
         .andWhere("category.categorySlug != ''")
         .orderBy('category.id', 'ASC')

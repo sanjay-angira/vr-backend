@@ -78,6 +78,10 @@ export async function migrateCmsImagesOntoParents(
   await dataSource.query(
     `ALTER TABLE categories DROP COLUMN IF EXISTS "imageAltText"`,
   );
+  await dataSource.query(`
+    ALTER TABLE IF EXISTS public.categories
+      DROP COLUMN IF EXISTS "publishStatus"
+  `);
 
   // Drop deprecated category media columns.
   try {

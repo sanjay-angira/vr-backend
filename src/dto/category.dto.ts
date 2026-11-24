@@ -174,14 +174,6 @@ export class CreateCategoryDto {
   video?: string;
 
   @ApiPropertyOptional({
-    enum: ['draft', 'published', 'scheduled'],
-    default: 'draft',
-  })
-  @IsOptional()
-  @IsString()
-  publishStatus?: string;
-
-  @ApiPropertyOptional({
     example: 'https://example.com/images/spices-mobile.jpg',
     description: 'Category image shown on mobile (uploaded as WebP)',
   })
@@ -285,11 +277,6 @@ export class UpdateCategoryDto {
   @Type(() => Number)
   @IsNumber({}, { each: true })
   offerIds?: number[];
-
-  @ApiPropertyOptional({ enum: ['draft', 'published', 'scheduled'] })
-  @IsOptional()
-  @IsString()
-  publishStatus?: string;
 
   @ApiPropertyOptional({
     description: 'Category image shown on mobile (uploaded as WebP)',
