@@ -10,6 +10,7 @@ export type ImageOptimizationType =
   | 'category_banner'
   | 'blog'
   | 'banner'
+  | 'banner_tablet'
   | 'banner_mobile'
   | 'category_mobile'
   | 'offer_desktop'
@@ -66,10 +67,17 @@ export const IMAGE_OPTIMIZATION_PRESETS: Record<
     webpQuality: 85,
     webpOnly: true,
   },
+  banner_tablet: {
+    type: 'banner_tablet',
+    folder: 'banners/tablet',
+    widths: [1200],
+    webpQuality: 85,
+    webpOnly: true,
+  },
   banner_mobile: {
     type: 'banner_mobile',
     folder: 'banners/mobile',
-    widths: [1200],
+    widths: [800],
     webpQuality: 85,
     webpOnly: true,
   },

@@ -3,14 +3,11 @@ import { IsBoolean, IsNumber, IsOptional, IsString } from 'class-validator';
 
 export class CreateBannerDto {
   @IsString()
-  title!: string;
+  desktopImage!: string;
 
   @IsOptional()
   @IsString()
-  subtitle?: string;
-
-  @IsString()
-  image!: string;
+  tabletImage?: string;
 
   @IsOptional()
   @IsString()
@@ -27,9 +24,6 @@ export class CreateBannerDto {
   @IsOptional()
   @IsBoolean()
   status?: boolean;
-
-  @IsNumber()
-  sectionId!: number;
 }
 
 export class UpdateBannerDto extends PartialType(CreateBannerDto) {}

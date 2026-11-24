@@ -11,22 +11,34 @@ describe('migrateCategoryResponsiveFields', () => {
         { column_name: 'bannerImage' },
         { column_name: 'mobileImage' },
         { column_name: 'tabletImage' },
+        { column_name: 'desktopBanner' },
+        { column_name: 'tabletBanner' },
+        { column_name: 'mobileBanner' },
       ])
       .mockResolvedValue(undefined);
 
     await migrateCategoryResponsiveFields({ query } as unknown as DataSource);
 
     expect(query).toHaveBeenCalledWith(
-      expect.stringContaining('ADD COLUMN IF NOT EXISTS "desktopBanner"'),
+      expect.stringContaining('ADD COLUMN IF NOT EXISTS "desktopImage"'),
+    );
+    expect(query).toHaveBeenCalledWith(
+      expect.stringContaining('ADD COLUMN IF NOT EXISTS "tabletImage"'),
+    );
+    expect(query).toHaveBeenCalledWith(
+      expect.stringContaining('ADD COLUMN IF NOT EXISTS "mobileImage"'),
     );
     expect(query).toHaveBeenCalledWith(
       expect.stringContaining('ADD COLUMN IF NOT EXISTS "useAsHeroBanner"'),
     );
     expect(query).toHaveBeenCalledWith(
-      expect.stringContaining('NULLIF("bannerImage", \'\')'),
+      expect.stringContaining('NULLIF("desktopBanner", \'\')'),
     );
     expect(query).toHaveBeenCalledWith(
-      expect.stringContaining('NULLIF("mobileImage", \'\')'),
+      expect.stringContaining('NULLIF("mobileBanner", \'\')'),
+    );
+    expect(query).toHaveBeenCalledWith(
+      expect.stringContaining('DROP COLUMN IF EXISTS "desktopBanner"'),
     );
   });
 

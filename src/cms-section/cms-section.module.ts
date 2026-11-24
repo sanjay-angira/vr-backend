@@ -9,7 +9,6 @@ import { Category } from '../entities/productCategory/category.entity';
 import { BlogPost } from '../entities/blog/blog-posts.entity';
 import { Offer } from '../entities/product/offer.entity';
 import { Faq } from '../entities/product/faq.entity';
-import { Banner } from '../entities/CMS/banner.entity';
 import { CmsSectionController } from './cms-section.controller';
 import { CmsSectionService } from './cms-section.service';
 import { Review } from 'src/entities/product/review.entity';
@@ -25,7 +24,6 @@ import { Review } from 'src/entities/product/review.entity';
       BlogPost,
       Offer,
       Faq,
-      Banner,
       Review,
     ]),
   ],

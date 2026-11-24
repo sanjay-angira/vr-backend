@@ -43,6 +43,7 @@ import { migrateProductStatusColumns } from './commonServices/migrate-product-st
 import { migrateBrandRemoval } from './commonServices/migrate-brand-removal';
 import { migrateOfferResponsiveImages } from './commonServices/migrate-offer-responsive-images';
 import { migrateCouponTimeBased } from './commonServices/migrate-coupon-time-based';
+import { migrateBannerResponsiveFields } from './commonServices/migrate-banner-responsive-fields';
 import { CommonModule } from './commonServices/common.module';
 import { AdminAuthGuard } from './commonServices/admin-auth.guard';
 
@@ -90,6 +91,7 @@ import { AdminAuthGuard } from './commonServices/admin-auth.guard';
           await renameProductImageUrlColumns(prep);
           await migrateProductImagesToVariants(prep);
           await migrateCmsImagesOntoParents(prep);
+          await migrateBannerResponsiveFields(prep);
           await migrateCategoryResponsiveFields(prep);
           await removeHeaderCms(prep);
           await removeUnusedFooterCms(prep);

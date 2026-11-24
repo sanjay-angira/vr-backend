@@ -39,12 +39,11 @@ export class CategoriesService {
       isActive,
       image,
       image3x2,
-      desktopBanner,
-      tabletBanner,
-      mobileBanner,
+      desktopImage,
+      tabletImage,
+      mobileImage,
       video,
       seo,
-      mobileImage,
       bannerImage,
       showOnHomePage,
       useAsHeroBanner,
@@ -73,12 +72,11 @@ export class CategoriesService {
         isActive: isActive ?? true,
         image: image ?? null,
         image3x2: image3x2 ?? null,
-        desktopBanner: desktopBanner ?? bannerImage ?? null,
-        tabletBanner: tabletBanner ?? null,
-        mobileBanner: mobileBanner ?? mobileImage ?? null,
+        desktopImage: desktopImage ?? bannerImage ?? null,
+        tabletImage: tabletImage ?? null,
+        mobileImage: mobileImage ?? null,
         video: video ?? null,
-        mobileImage: mobileBanner ?? mobileImage ?? null,
-        bannerImage: desktopBanner ?? bannerImage ?? null,
+        bannerImage: desktopImage ?? bannerImage ?? null,
         showOnHomePage,
         useAsHeroBanner: useAsHeroBanner ?? false,
         parent,
@@ -166,12 +164,11 @@ export class CategoriesService {
       isActive,
       image,
       image3x2,
-      desktopBanner,
-      tabletBanner,
-      mobileBanner,
+      desktopImage,
+      tabletImage,
+      mobileImage,
       video,
       seo,
-      mobileImage,
       bannerImage,
       showOnHomePage,
       useAsHeroBanner,
@@ -212,21 +209,15 @@ export class CategoriesService {
         category.useAsHeroBanner = useAsHeroBanner;
       if (image !== undefined) category.image = image;
       if (image3x2 !== undefined) category.image3x2 = image3x2;
-      if (desktopBanner !== undefined) {
-        category.desktopBanner = desktopBanner;
-        category.bannerImage = desktopBanner;
+      if (desktopImage !== undefined) {
+        category.desktopImage = desktopImage;
+        category.bannerImage = desktopImage;
       } else if (bannerImage !== undefined) {
-        category.desktopBanner = bannerImage;
+        category.desktopImage = bannerImage;
         category.bannerImage = bannerImage;
       }
-      if (tabletBanner !== undefined) category.tabletBanner = tabletBanner;
-      if (mobileBanner !== undefined) {
-        category.mobileBanner = mobileBanner;
-        category.mobileImage = mobileBanner;
-      } else if (mobileImage !== undefined) {
-        category.mobileBanner = mobileImage;
-        category.mobileImage = mobileImage;
-      }
+      if (tabletImage !== undefined) category.tabletImage = tabletImage;
+      if (mobileImage !== undefined) category.mobileImage = mobileImage;
       if (video !== undefined) category.video = video;
 
       if (seo) {

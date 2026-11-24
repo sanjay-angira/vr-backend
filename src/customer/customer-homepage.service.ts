@@ -72,7 +72,17 @@ export class CustomerHomepageService {
       where: { status: true },
       order: { position: 'ASC', id: 'ASC' },
     });
-    return successResponse(banners, 'Homepage banners retrieved successfully');
+    return successResponse(
+      banners.map((banner) => ({
+        id: banner.id,
+        desktopImage: banner.desktopImage || '',
+        tabletImage: banner.tabletImage || banner.desktopImage || '',
+        mobileImage:
+          banner.mobileImage || banner.tabletImage || banner.desktopImage || '',
+        link: banner.bannerLink || '/shop',
+      })),
+      'Homepage banners retrieved successfully',
+    );
   }
 
   /**
@@ -204,7 +214,6 @@ export class CustomerHomepageService {
       products,
       categories,
       blogs,
-      banners: [],
       reviews,
     };
   }

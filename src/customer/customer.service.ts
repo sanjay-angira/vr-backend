@@ -688,15 +688,17 @@ export class CustomerService {
           })),
         banners: banners.map((banner) => ({
           id: banner.id,
-          title: banner.title,
-          subtitle: banner.subtitle || '',
-          image: pickOptimizedImageUrl(
+          desktopImage: pickOptimizedImageUrl(
             bannerImageSource(banner, 'desktop'),
             1920,
           ),
+          tabletImage: pickOptimizedImageUrl(
+            bannerImageSource(banner, 'tablet'),
+            1200,
+          ),
           mobileImage: pickOptimizedImageUrl(
             bannerImageSource(banner, 'mobile'),
-            1200,
+            800,
           ),
           link: banner.bannerLink || '/shop',
         })),

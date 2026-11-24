@@ -153,20 +153,15 @@ export class CreateCategoryDto {
   @IsString()
   image3x2?: string;
 
-  @ApiPropertyOptional({ description: 'Desktop category banner uploaded as WebP' })
+  @ApiPropertyOptional({ description: 'Desktop category image uploaded as WebP' })
   @IsOptional()
   @IsString()
-  desktopBanner?: string;
+  desktopImage?: string;
 
-  @ApiPropertyOptional({ description: 'Tablet category banner uploaded as WebP' })
+  @ApiPropertyOptional({ description: 'Tablet category image uploaded as WebP' })
   @IsOptional()
   @IsString()
-  tabletBanner?: string;
-
-  @ApiPropertyOptional({ description: 'Mobile category banner uploaded as WebP' })
-  @IsOptional()
-  @IsString()
-  mobileBanner?: string;
+  tabletImage?: string;
 
   @ApiPropertyOptional({ description: 'Category video URL' })
   @IsOptional()
@@ -175,7 +170,7 @@ export class CreateCategoryDto {
 
   @ApiPropertyOptional({
     example: 'https://example.com/images/spices-mobile.jpg',
-    description: 'Category image shown on mobile (uploaded as WebP)',
+    description: 'Mobile category image (uploaded as WebP)',
   })
   @IsOptional()
   @IsString()
@@ -251,20 +246,15 @@ export class UpdateCategoryDto {
   @IsString()
   image3x2?: string | null;
 
-  @ApiPropertyOptional({ description: 'Desktop category banner uploaded as WebP' })
+  @ApiPropertyOptional({ description: 'Desktop category image uploaded as WebP' })
   @IsOptional()
   @IsString()
-  desktopBanner?: string | null;
+  desktopImage?: string | null;
 
-  @ApiPropertyOptional({ description: 'Tablet category banner uploaded as WebP' })
+  @ApiPropertyOptional({ description: 'Tablet category image uploaded as WebP' })
   @IsOptional()
   @IsString()
-  tabletBanner?: string | null;
-
-  @ApiPropertyOptional({ description: 'Mobile category banner uploaded as WebP' })
-  @IsOptional()
-  @IsString()
-  mobileBanner?: string | null;
+  tabletImage?: string | null;
 
   @ApiPropertyOptional({ description: 'Category video URL' })
   @IsOptional()
@@ -279,7 +269,7 @@ export class UpdateCategoryDto {
   offerIds?: number[];
 
   @ApiPropertyOptional({
-    description: 'Category image shown on mobile (uploaded as WebP)',
+    description: 'Mobile category image (uploaded as WebP)',
   })
   @IsOptional()
   @IsString()

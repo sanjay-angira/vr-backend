@@ -19,7 +19,6 @@ import { Category } from '../entities/productCategory/category.entity';
 import { BlogPost } from '../entities/blog/blog-posts.entity';
 import { Offer } from '../entities/product/offer.entity';
 import { Faq } from '../entities/product/faq.entity';
-import { Banner } from '../entities/CMS/banner.entity';
 
 import { successResponse } from 'src/commonServices/response.service';
 import { Review } from 'src/entities/product/review.entity';
@@ -44,9 +43,6 @@ export class CmsSectionService implements OnModuleInit {
 
     @InjectRepository(Faq)
     private readonly faqRepo: Repository<Faq>,
-
-    @InjectRepository(Banner)
-    private readonly bannerRepo: Repository<Banner>,
 
     @InjectRepository(Review)
     private readonly reviewRepo: Repository<Review>,
@@ -234,7 +230,6 @@ export class CmsSectionService implements OnModuleInit {
       blogIds?: number[];
       offerIds?: number[];
       faqIds?: number[];
-      bannerIds?: number[];
       reviewIds?: number[];
     },
   ) {
@@ -248,7 +243,6 @@ export class CmsSectionService implements OnModuleInit {
       this.syncOwnedSectionRelation(this.blogRepo, sectionId, dto.blogIds),
       this.syncOwnedSectionRelation(this.offerRepo, sectionId, dto.offerIds),
       this.syncOwnedSectionRelation(this.faqRepo, sectionId, dto.faqIds),
-      this.syncOwnedSectionRelation(this.bannerRepo, sectionId, dto.bannerIds),
       this.syncOwnedSectionRelation(this.reviewRepo, sectionId, dto.reviewIds),
     ]);
   }
@@ -268,7 +262,6 @@ export class CmsSectionService implements OnModuleInit {
         blogIds,
         offerIds,
         faqIds,
-        bannerIds,
         reviewIds,
         ...sectionFields
       } = createCmsSectionDto;
@@ -290,7 +283,6 @@ export class CmsSectionService implements OnModuleInit {
         blogIds,
         offerIds,
         faqIds,
-        bannerIds,
         reviewIds,
       });
 
@@ -335,7 +327,6 @@ export class CmsSectionService implements OnModuleInit {
           'blogs',
           'offers',
           'faqs',
-          'banners',
           'reviews',
         ],
       });
@@ -369,7 +360,6 @@ export class CmsSectionService implements OnModuleInit {
         blogIds,
         offerIds,
         faqIds,
-        bannerIds,
         reviewIds,
         ...sectionFields
       } = updateCmsSectionDto;
@@ -397,7 +387,6 @@ export class CmsSectionService implements OnModuleInit {
         blogIds,
         offerIds,
         faqIds,
-        bannerIds,
         reviewIds,
       });
 

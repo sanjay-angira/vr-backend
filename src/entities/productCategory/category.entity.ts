@@ -33,13 +33,10 @@ export class Category {
   description!: string;
 
   @Column({ type: 'varchar', length: 2048, nullable: true })
-  desktopBanner!: string | null;
+  desktopImage!: string | null;
 
   @Column({ type: 'varchar', length: 2048, nullable: true })
-  tabletBanner!: string | null;
-
-  @Column({ type: 'varchar', length: 2048, nullable: true })
-  mobileBanner!: string | null;
+  tabletImage!: string | null;
 
   @Column({ type: 'varchar', length: 2048, nullable: true })
   image3x2!: string | null;
@@ -51,7 +48,7 @@ export class Category {
   @Column({ type: 'varchar', length: 2048, nullable: true })
   image!: string | null;
 
-  /** Category image shown on mobile (uploaded as WebP). */
+  /** Mobile category image (uploaded as WebP). */
   @Column({ type: 'varchar', length: 2048, nullable: true })
   mobileImage!: string | null;
 

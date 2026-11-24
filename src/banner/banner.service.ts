@@ -7,6 +7,10 @@ import { Banner } from '../entities/CMS/banner.entity';
 import { successResponse } from 'src/commonServices/response.service';
 
 const DEPRECATED_BANNER_COLUMNS = [
+  'title',
+  'subtitle',
+  'image',
+  'sectionId',
   'buttonText',
   'textColor',
   'backgroundColor',
@@ -87,7 +91,7 @@ export class BannerService implements OnModuleInit {
 
       if (rows.length) {
         await this.bannerRepo.query(
-          `ALTER TABLE "banners" DROP COLUMN "${column}"`,
+          `ALTER TABLE "banners" DROP COLUMN "${column}" CASCADE`,
         );
       }
     }
@@ -101,8 +105,16 @@ export class BannerService implements OnModuleInit {
       textColor?: string;
       backgroundColor?: string;
       buttonLink?: string;
+      title?: string;
+      subtitle?: string;
+      image?: string;
+      sectionId?: number;
     };
     const sanitized = { ...dto } as T & Record<string, unknown>;
+    delete sanitized.title;
+    delete sanitized.subtitle;
+    delete sanitized.image;
+    delete sanitized.sectionId;
     delete sanitized.buttonText;
     delete sanitized.textColor;
     delete sanitized.backgroundColor;

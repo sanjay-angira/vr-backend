@@ -18,15 +18,18 @@ export async function migrateCategoryResponsiveFields(
 
   await dataSource.query(`
     ALTER TABLE public.categories
-      ADD COLUMN IF NOT EXISTS "desktopBanner" character varying(2048),
-      ADD COLUMN IF NOT EXISTS "tabletBanner" character varying(2048),
-      ADD COLUMN IF NOT EXISTS "mobileBanner" character varying(2048),
+      ADD COLUMN IF NOT EXISTS "desktopImage" character varying(2048),
+      ADD COLUMN IF NOT EXISTS "tabletImage" character varying(2048),
+      ADD COLUMN IF NOT EXISTS "mobileImage" character varying(2048),
       ADD COLUMN IF NOT EXISTS "image3x2" character varying(2048),
       ADD COLUMN IF NOT EXISTS video character varying(2048),
       ADD COLUMN IF NOT EXISTS "useAsHeroBanner" boolean NOT NULL DEFAULT false
   `);
 
-  const desktopImage = columns.has('desktopImage')
+  const desktopBanner = columns.has('desktopBanner')
+    ? `NULLIF("desktopBanner", '')`
+    : 'NULL';
+  const previousDesktopImage = columns.has('desktopImage')
     ? `NULLIF("desktopImage", '')`
     : 'NULL';
   const bannerImage = columns.has('bannerImage')
@@ -35,34 +38,29 @@ export async function migrateCategoryResponsiveFields(
   const image = columns.has('image') ? `NULLIF(image, '')` : 'NULL';
   await dataSource.query(`
     UPDATE public.categories
-    SET "desktopBanner" = COALESCE(
-      NULLIF("desktopBanner", ''),
-      ${desktopImage},
-      ${bannerImage},
-      ${image}
-    )
-    WHERE "desktopBanner" IS NULL OR "desktopBanner" = ''
+    SET "desktopImage" = COALESCE(${desktopBanner}, ${previousDesktopImage}, ${bannerImage}, ${image})
   `);
 
-  const tabletImage = columns.has('tabletImage')
-    ? `NULLIF("tabletImage", '')`
+  const tabletBanner = columns.has('tabletBanner')
+    ? `NULLIF("tabletBanner", '')`
     : 'NULL';
-  if (columns.has('tabletImage')) {
+  await dataSource.query(`
+    UPDATE public.categories
+    SET "tabletImage" = COALESCE(${tabletBanner}, NULLIF("tabletImage", ''))
+  `);
+
+  if (columns.has('mobileBanner')) {
     await dataSource.query(`
       UPDATE public.categories
-      SET "tabletBanner" = COALESCE(NULLIF("tabletBanner", ''), ${tabletImage})
-      WHERE "tabletBanner" IS NULL OR "tabletBanner" = ''
+      SET "mobileImage" = COALESCE(NULLIF("mobileBanner", ''), NULLIF("mobileImage", ''))
+      WHERE "mobileBanner" IS NOT NULL AND "mobileBanner" <> ''
     `);
   }
 
-  if (columns.has('mobileImage')) {
-    await dataSource.query(`
-      UPDATE public.categories
-      SET "mobileBanner" = COALESCE(
-        NULLIF("mobileBanner", ''),
-        NULLIF("mobileImage", '')
-      )
-      WHERE "mobileBanner" IS NULL OR "mobileBanner" = ''
-    `);
-  }
+  await dataSource.query(`
+    ALTER TABLE public.categories
+      DROP COLUMN IF EXISTS "desktopBanner",
+      DROP COLUMN IF EXISTS "tabletBanner",
+      DROP COLUMN IF EXISTS "mobileBanner"
+  `);
 }

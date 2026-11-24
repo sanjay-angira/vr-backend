@@ -4,7 +4,7 @@ import type { Banner } from 'src/entities/CMS/banner.entity';
 import type { VariantImage } from 'src/entities/product/variant-image.entity';
 import { pickOptimizedImageUrl } from './image-url.util';
 
-export type BannerImageRole = 'desktop' | 'mobile';
+export type BannerImageRole = 'desktop' | 'tablet' | 'mobile';
 
 export function categoryImageSource(category: Category) {
   const url = (category.image || '').trim();
@@ -30,7 +30,11 @@ export function bannerImageSource(
   role: BannerImageRole = 'desktop',
 ) {
   const raw =
-    role === 'mobile' ? banner.mobileImage || banner.image : banner.image;
+    role === 'desktop'
+      ? banner.desktopImage || banner.tabletImage || banner.mobileImage
+      : role === 'tablet'
+        ? banner.tabletImage || banner.desktopImage || banner.mobileImage
+        : banner.mobileImage || banner.tabletImage || banner.desktopImage;
   const url = (raw || '').trim();
   return { originalUrl: url, url };
 }

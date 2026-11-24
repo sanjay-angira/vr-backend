@@ -267,26 +267,35 @@ async function migrateBanners(
         continue;
       }
       let changed = false;
-      if (row.image && !row.image.toLowerCase().endsWith('.webp')) {
+      const responsiveImages = [
+        {
+          field: 'desktopImage',
+          imageType: 'banner',
+          assetId: `banner-${row.id}`,
+        },
+        {
+          field: 'tabletImage',
+          imageType: 'banner_tablet',
+          assetId: `banner-tablet-${row.id}`,
+        },
+        {
+          field: 'mobileImage',
+          imageType: 'banner_mobile',
+          assetId: `banner-mobile-${row.id}`,
+        },
+      ] as const;
+
+      for (const { field, imageType, assetId } of responsiveImages) {
+        const image = row[field];
+        if (!image || image.toLowerCase().endsWith('.webp')) continue;
         const result = await optimizeExistingUrl(
           s3,
           optimizer,
-          row.image,
-          'banner',
-          `banner-${row.id}`,
+          image,
+          imageType,
+          assetId,
         );
-        row.image = result.Location;
-        changed = true;
-      }
-      if (row.mobileImage && !row.mobileImage.toLowerCase().endsWith('.webp')) {
-        const result = await optimizeExistingUrl(
-          s3,
-          optimizer,
-          row.mobileImage,
-          'banner_mobile',
-          `banner-mobile-${row.id}`,
-        );
-        row.mobileImage = result.Location;
+        row[field] = result.Location;
         changed = true;
       }
       if (changed) {

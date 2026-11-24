@@ -119,17 +119,18 @@ export async function migrateCmsImagesOntoParents(
   }
 
   // Banners
-  await ensureVarcharColumn(dataSource, 'banners', 'image');
+  await ensureVarcharColumn(dataSource, 'banners', 'desktopImage');
   await ensureVarcharColumn(dataSource, 'banners', 'mobileImage');
+  await ensureVarcharColumn(dataSource, 'banners', 'tabletImage');
 
   if (await tableExists(dataSource, 'banner_images')) {
     await dataSource.query(`
       UPDATE banners b
-      SET image = COALESCE(NULLIF(b.image, ''), img."originalUrl")
+      SET "desktopImage" = COALESCE(NULLIF(b."desktopImage", ''), img."originalUrl")
       FROM banner_images img
       WHERE img."bannerId" = b.id
         AND img.role = 'desktop'
-        AND (b.image IS NULL OR b.image = '')
+        AND (b."desktopImage" IS NULL OR b."desktopImage" = '')
     `);
     await dataSource.query(`
       UPDATE banners b

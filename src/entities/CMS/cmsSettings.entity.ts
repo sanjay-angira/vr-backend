@@ -14,7 +14,6 @@ import { Category } from '../productCategory/category.entity';
 import { BlogPost } from '../blog/blog-posts.entity';
 import { Offer } from '../product/offer.entity';
 import { Faq } from '../product/faq.entity';
-import { Banner } from './banner.entity';
 import { Review } from '../product/review.entity';
 
 export enum CmsSectionType {
@@ -75,9 +74,6 @@ export class CmsSection {
 
   @OneToMany(() => Faq, (faq) => faq.section, { eager: true })
   faqs!: Faq[];
-
-  @OneToMany(() => Banner, (banner) => banner.section, { cascade: true })
-  banners!: Banner[];
 
   @OneToMany(() => Review, (review) => review.section, { cascade: true })
   reviews!: Review[];

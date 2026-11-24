@@ -30,14 +30,12 @@ export class BannerController {
       sample: {
         summary: 'Create banner example',
         value: {
-          title: 'Summer Sale',
-          subtitle: 'Up To 50% OFF',
-          image: 'summer-sale-banner.jpg',
+          desktopImage: 'summer-sale-banner.webp',
+          tabletImage: 'summer-sale-tablet.webp',
           mobileImage: 'summer-sale-mobile.jpg',
           bannerLink: '/shop',
           position: 1,
           status: true,
-          sectionId: 1,
         },
       },
     },
@@ -93,14 +91,12 @@ export class BannerController {
       sample: {
         summary: 'Update banner example',
         value: {
-          title: 'Mega Summer Sale',
-          subtitle: 'Flat 70% OFF',
-          image: 'mega-sale-banner.jpg',
+          desktopImage: 'mega-sale-banner.webp',
+          tabletImage: 'mega-sale-tablet.webp',
           mobileImage: 'mega-sale-mobile.jpg',
           bannerLink: '/offers',
           position: 2,
           status: true,
-          sectionId: 2,
         },
       },
     },

@@ -63,10 +63,6 @@ export class CreateCmsSectionDto {
 
   @IsOptional()
   @IsArray()
-  bannerIds?: number[];
-
-  @IsOptional()
-  @IsArray()
   reviewIds?: number[];
 }
 

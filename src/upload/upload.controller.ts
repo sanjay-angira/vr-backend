@@ -48,6 +48,7 @@ export class UploadController {
             'category_banner',
             'blog',
             'banner',
+            'banner_tablet',
             'banner_mobile',
             'offer_desktop',
             'offer_tablet',
