@@ -15,7 +15,6 @@ import {
   IsInt,
   Matches,
 } from 'class-validator';
-import { PublishStatus } from 'src/entities/product/product.entity';
 import { AtttributeViewOption } from 'src/entities/product/product-variant-attribute.entity';
 import { PaginationDto } from './common.dto';
 
@@ -261,10 +260,6 @@ export class CreateProductDto {
   @IsOptional()
   bestSeller?: boolean;
 
-  @IsEnum(PublishStatus)
-  @IsOptional()
-  publishStatus?: PublishStatus;
-
   @Type(() => Number)
   @IsInt()
   @IsOptional()
@@ -489,10 +484,6 @@ export class UpdateProductDto {
   @IsOptional()
   @IsBoolean()
   bestSeller?: boolean;
-
-  @IsOptional()
-  @IsEnum(PublishStatus)
-  publishStatus?: PublishStatus;
 
   @IsOptional()
   @Type(() => Number)

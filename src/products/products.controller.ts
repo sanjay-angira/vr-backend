@@ -46,7 +46,6 @@ export class ProductsController {
         value: {
           productName: 'Aashirvaad Turmeric Powder 200g',
           productSlug: 'aashirvaad-turmeric-powder-200g',
-          publishStatus: 'published',
           shortDescription: 'Premium turmeric powder',
           description: 'Natural turmeric powder for daily cooking',
           isActive: true,
@@ -112,7 +111,6 @@ export class ProductsController {
         value: {
           productName: 'Samsung Galaxy S21 Updated',
           productSlug: 'samsung-galaxy-s21-new',
-          publishStatus: 'published',
           shortDescription: 'Updated flagship smartphone',
           description: 'Updated description with better performance details',
           isActive: true,

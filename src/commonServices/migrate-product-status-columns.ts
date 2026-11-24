@@ -9,4 +9,8 @@ export async function migrateProductStatusColumns(
       ADD COLUMN IF NOT EXISTS "newArrival" boolean NOT NULL DEFAULT false,
       ADD COLUMN IF NOT EXISTS "bestSeller" boolean NOT NULL DEFAULT false
   `);
+  await dataSource.query(`
+    ALTER TABLE IF EXISTS public.product
+      DROP COLUMN IF EXISTS "publishStatus"
+  `);
 }

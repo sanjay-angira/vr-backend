@@ -23,11 +23,6 @@ import { CategoryAttribute } from '../productCategory/category-attribute.entity'
 import { ProductAttribute } from './product-attribute.entity';
 import { Warehouse } from './warehouse.entity';
 
-export enum PublishStatus {
-  DRAFT = 'draft',
-  PUBLISHED = 'published',
-  SCHEDULED = 'scheduled',
-}
 @Entity('product')
 export class Product {
   @PrimaryGeneratedColumn()
@@ -56,9 +51,6 @@ export class Product {
 
   @Column({ type: 'boolean', default: false, nullable: false })
   bestSeller!: boolean;
-
-  @Column({ type: 'enum', enum: PublishStatus, default: PublishStatus.DRAFT })
-  publishStatus!: PublishStatus;
 
   @ManyToOne(() => Category, { eager: true })
   category!: Category;

@@ -8,7 +8,7 @@ import {
 import { OfferPricingService } from 'src/commonServices/offer-pricing.service';
 import { pickVariantCardImage } from 'src/commonServices/image-relation.util';
 import { RecentlyViewed } from 'src/entities/recently-viewed/recently-viewed.entity';
-import { Product, PublishStatus } from 'src/entities/product/product.entity';
+import { Product } from 'src/entities/product/product.entity';
 import { Category } from 'src/entities/productCategory/category.entity';
 import { AddRecentlyViewedDto } from 'src/dto/recently-viewed.dto';
 
@@ -138,7 +138,6 @@ export class CustomerRecentlyViewedService {
       where: {
         id: In(productIds),
         isActive: true,
-        publishStatus: PublishStatus.PUBLISHED,
       },
       select: ['id'],
     });
@@ -275,7 +274,6 @@ export class CustomerRecentlyViewedService {
       where: {
         id: In(productIds),
         isActive: true,
-        publishStatus: PublishStatus.PUBLISHED,
       },
       relations: [
         'variants',

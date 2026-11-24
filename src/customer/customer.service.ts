@@ -10,7 +10,7 @@ import {
 } from 'src/commonServices/response.service';
 import { OfferPricingService } from 'src/commonServices/offer-pricing.service';
 import { RazorpayService } from 'src/commonServices/razorpay.service';
-import { Product, PublishStatus } from 'src/entities/product/product.entity';
+import { Product } from 'src/entities/product/product.entity';
 import { Category } from 'src/entities/productCategory/category.entity';
 import { DataSource, In, ILike, Repository } from 'typeorm';
 import { ProductVariant } from 'src/entities/product/product-variants.entity';
@@ -419,7 +419,6 @@ export class CustomerService {
         const productCount = await this.productRepository.count({
           where: {
             isActive: true,
-            publishStatus: PublishStatus.PUBLISHED,
             category: { id: category.id },
           },
         });
@@ -479,9 +478,6 @@ export class CustomerService {
         .leftJoin('product.category', 'category')
         .leftJoin('product.variants', 'variants')
         .where('product.isActive = :isActive', { isActive: true })
-        .andWhere('product.publishStatus = :publishStatus', {
-          publishStatus: PublishStatus.PUBLISHED,
-        })
         .andWhere(
           `(product.productName ILIKE :like
             OR product.productSlug ILIKE :like
@@ -601,9 +597,6 @@ export class CustomerService {
           .createQueryBuilder('variant')
           .innerJoin('variant.product', 'product')
           .where('product.isActive = :isActive', { isActive: true })
-          .andWhere('product.publishStatus = :publishStatus', {
-            publishStatus: PublishStatus.PUBLISHED,
-          })
           .select('MIN(variant.price)', 'minPrice')
           .addSelect('MAX(variant.price)', 'maxPrice')
           .getRawOne<{ minPrice: string | null; maxPrice: string | null }>(),
@@ -808,9 +801,6 @@ export class CustomerService {
         .select('product.id', 'id')
         .addSelect('product.createdAt', 'createdAt')
         .where('product.isActive = :isActive', { isActive: true })
-        .andWhere('product.publishStatus = :publishStatus', {
-          publishStatus: PublishStatus.PUBLISHED,
-        });
 
       if (search) {
         idQb.leftJoin('product.variants', 'variants').andWhere(
@@ -1212,9 +1202,6 @@ export class CustomerService {
         .leftJoinAndSelect('product.productOffers', 'productOffers')
         .where('product.id = :productId', { productId: productLookup })
         .andWhere('product.isActive = :isActive', { isActive: true })
-        .andWhere('product.publishStatus = :publishStatus', {
-          publishStatus: PublishStatus.PUBLISHED,
-        })
         .getOne();
 
       if (!product) {
@@ -1323,9 +1310,6 @@ export class CustomerService {
       .select(['product.id'])
       .where('product.productSlug = :slug', { slug })
       .andWhere('product.isActive = :isActive', { isActive: true })
-      .andWhere('product.publishStatus = :publishStatus', {
-        publishStatus: PublishStatus.PUBLISHED,
-      })
       .getOne();
 
     if (product) {
@@ -1338,9 +1322,6 @@ export class CustomerService {
       .select('product.id', 'productId')
       .where('variant.slug = :slug', { slug })
       .andWhere('product.isActive = :isActive', { isActive: true })
-      .andWhere('product.publishStatus = :publishStatus', {
-        publishStatus: PublishStatus.PUBLISHED,
-      })
       .getRawOne<{ productId: string | number }>();
 
     const productId = Number(row?.productId);

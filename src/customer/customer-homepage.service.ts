@@ -7,7 +7,7 @@ import {
   CmsSection,
   CmsSectionType,
 } from 'src/entities/CMS/cmsSettings.entity';
-import { Product, PublishStatus } from 'src/entities/product/product.entity';
+import { Product } from 'src/entities/product/product.entity';
 import { Category } from 'src/entities/productCategory/category.entity';
 import { BlogPost } from 'src/entities/blog/blog-posts.entity';
 import { Banner } from 'src/entities/CMS/banner.entity';
@@ -90,9 +90,6 @@ export class CustomerHomepageService {
           'product.createdAt',
         ])
         .where('product.isActive = :isActive', { isActive: true })
-        .andWhere('product.publishStatus = :publishStatus', {
-          publishStatus: PublishStatus.PUBLISHED,
-        })
         .andWhere('product.productSlug IS NOT NULL')
         .andWhere("product.productSlug != ''")
         .orderBy('product.updatedAt', 'DESC')
@@ -229,9 +226,6 @@ export class CustomerHomepageService {
         .select('product.id', 'id')
         .where('cmsSection.id = :sectionId', { sectionId })
         .andWhere('product.isActive = :isActive', { isActive: true })
-        .andWhere('product.publishStatus = :publishStatus', {
-          publishStatus: PublishStatus.PUBLISHED,
-        })
         .orderBy('product.id', 'ASC')
         .take(limit)
         .getRawMany<{ id: string | number }>()
@@ -366,7 +360,6 @@ export class CustomerHomepageService {
       where: {
         section: { id: sectionId },
         isActive: true,
-        publishStatus: 'published',
       },
       relations: [],
       loadEagerRelations: false,

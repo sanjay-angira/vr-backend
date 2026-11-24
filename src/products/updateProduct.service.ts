@@ -96,8 +96,6 @@ export class UpdateProductService {
         updateProductDto.newArrival ?? product.newArrival;
       product.bestSeller =
         updateProductDto.bestSeller ?? product.bestSeller;
-      product.publishStatus =
-        updateProductDto.publishStatus ?? product.publishStatus;
 
       /* ================= CATEGORY ================= */
       if (updateProductDto.category) {

@@ -6,7 +6,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In } from 'typeorm';
 import { Category } from '../entities/productCategory/category.entity';
-import { Product, PublishStatus } from 'src/entities/product/product.entity';
+import { Product } from 'src/entities/product/product.entity';
 import { CreateProductDto } from 'src/dto/product.dto';
 import {
   successResponse,
@@ -153,7 +153,6 @@ export class AddProductService {
         isFeatured: createProductDto.isFeatured ?? false,
         newArrival: createProductDto.newArrival ?? false,
         bestSeller: createProductDto.bestSeller ?? false,
-        publishStatus: createProductDto.publishStatus ?? PublishStatus.DRAFT,
         category: category ?? undefined,
         warehouse: warehouse ?? undefined,
         productOffers: offers,
