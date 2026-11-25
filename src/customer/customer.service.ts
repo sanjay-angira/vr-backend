@@ -612,6 +612,57 @@ export class CustomerService {
       Math.ceil(Number(priceBounds?.maxPrice) || 100000),
     );
 
+    const homepageSectionTypes = new Set<string>([
+      CmsSectionType.PRODUCT_SLIDER,
+      CmsSectionType.CATEGORY_SLIDER,
+      CmsSectionType.BLOG_SECTION,
+      CmsSectionType.REVIEW_SECTION,
+      CmsSectionType.CUSTOM,
+    ]);
+
+    const homepageSectionCopy = productSections
+      .filter((section) => homepageSectionTypes.has(section.type))
+      .map((section) => {
+        const title = String(section.title || '').trim();
+        const configuredLimit = Number(section.data?.maxProducts);
+        const heading =
+          typeof section.data?.heading === 'string'
+            ? section.data.heading.trim()
+            : '';
+        const slug =
+          (section.slug && String(section.slug).trim()) ||
+          this.slugifySectionTitle(title || heading || `section-${section.id}`);
+
+        return {
+          slug,
+          title: title || heading,
+          type: section.type,
+          position: section.position,
+          heading,
+          subHeading:
+            typeof section.data?.subHeading === 'string'
+              ? section.data.subHeading.trim()
+              : '',
+          headingAccent:
+            typeof section.data?.headingAccent === 'string'
+              ? section.data.headingAccent.trim()
+              : '',
+          description:
+            typeof section.data?.description === 'string'
+              ? section.data.description.trim()
+              : '',
+          maxProducts:
+            Number.isFinite(configuredLimit) && configuredLimit > 0
+              ? configuredLimit
+              : 8,
+          customSection:
+            typeof section.data?.customSection === 'string'
+              ? section.data.customSection
+              : undefined,
+        };
+      })
+      .filter((section) => Boolean(section.slug));
+
     const productLayoutTypes = new Set<string>([
       CmsSectionType.PRODUCT_SLIDER,
       CmsSectionType.CUSTOM,
@@ -671,6 +722,7 @@ export class CustomerService {
           })),
         ],
         productSections: productSectionOptions,
+        homepageSectionCopy,
         ratingOptions: [
           { value: 4, label: '4 Stars & Up' },
           { value: 3, label: '3 Stars & Up' },
