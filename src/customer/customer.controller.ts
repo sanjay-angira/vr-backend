@@ -196,6 +196,14 @@ export class CustomerController {
     return this.customerService.getProductBySlug(slug);
   }
 
+  @Get('reviews')
+  @ApiOperation({
+    summary: 'Get approved reviews for the storefront homepage',
+  })
+  async getHomepageReviews() {
+    return this.customerService.getHomepageReviews();
+  }
+
   @Post('add-cart-item')
   @CustomerApi({ allowGuest: true })
   @ApiOperation({ summary: 'Add item to cart for customer app' })

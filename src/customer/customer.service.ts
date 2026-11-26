@@ -2686,4 +2686,51 @@ export class CustomerService {
       201,
     );
   }
+
+  async getHomepageReviews() {
+    const reviews = await this.dataSource
+      .getRepository(Review)
+      .createQueryBuilder('review')
+      .innerJoinAndSelect('review.product', 'product')
+      .leftJoinAndSelect('review.user', 'user')
+      .select([
+        'review.id',
+        'review.rating',
+        'review.comment',
+        'review.userName',
+        'review.isManual',
+        'review.createdAt',
+        'product.id',
+        'product.productName',
+        'user.id',
+        'user.firstName',
+        'user.lastName',
+      ])
+      .where('review.isApproved = :isApproved', { isApproved: true })
+      .andWhere('review.comment IS NOT NULL')
+      .andWhere("TRIM(review.comment) <> ''")
+      .orderBy('review.createdAt', 'DESC')
+      .take(3)
+      .getMany();
+
+    return successResponse(
+      {
+        rows: reviews.map((review) => ({
+          id: review.id,
+          rating: Number(review.rating) || 0,
+          comment: review.comment || '',
+          userName:
+            review.userName ||
+            [review.user?.firstName, review.user?.lastName]
+              .filter(Boolean)
+              .join(' ')
+              .trim() ||
+            'Customer',
+          productName: review.product?.productName || '',
+          createdAt: review.createdAt,
+        })),
+      },
+      'Approved homepage reviews retrieved successfully.',
+    );
+  }
 }
