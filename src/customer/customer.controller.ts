@@ -22,7 +22,6 @@ import {
   ApiTags,
 } from '@nestjs/swagger';
 import { CustomerService } from './customer.service';
-import { CustomerHomepageService } from './customer-homepage.service';
 import { CustomerBlogService } from './customer-blog.service';
 import { AddToCartDto, UpdateCartDto } from 'src/dto/cart.dto';
 import { CheckoutDto } from 'src/dto/checkout.dto';
@@ -48,23 +47,16 @@ type AuthenticatedCustomerRequest = Request & { customerId: number };
 export class CustomerController {
   constructor(
     private readonly customerService: CustomerService,
-    private readonly customerHomepageService: CustomerHomepageService,
     private readonly customerBlogService: CustomerBlogService,
     private readonly customerAddressService: CustomerAddressService,
     private readonly customerWishlistService: CustomerWishlistService,
     private readonly customerRecentlyViewedService: CustomerRecentlyViewedService,
   ) {}
 
-  @Get('homepage')
-  @ApiOperation({ summary: 'Get homepage CMS sections for website' })
-  async getHomepage() {
-    return this.customerHomepageService.getHomepage();
-  }
-
   @Get('banners')
   @ApiOperation({ summary: 'Get active banners for the storefront homepage' })
-  async getHomepageBanners() {
-    return this.customerHomepageService.getHomepageBanners();
+  async getBanners() {
+    return this.customerService.getBanners();
   }
 
   @Get('sitemap')
@@ -73,7 +65,7 @@ export class CustomerController {
       'Lightweight product/blog/category slugs for storefront sitemap.xml',
   })
   async getSitemapEntries() {
-    return this.customerHomepageService.getSitemapEntries();
+    return this.customerService.getSitemapEntries();
   }
 
   @Get('blogs')
@@ -185,6 +177,7 @@ export class CustomerController {
   })
   @ApiQuery({ name: 'newArrivals', required: false, type: Boolean })
   @ApiQuery({ name: 'featured', required: false, type: Boolean })
+  @ApiQuery({ name: 'bestSeller', required: false, type: Boolean })
   @ApiQuery({ name: 'bestDeals', required: false, type: Boolean })
   @ApiQuery({ name: 'sectionSlugs', required: false, type: String })
   async getStoreProducts(@Query() query: StoreProductsQueryDto) {

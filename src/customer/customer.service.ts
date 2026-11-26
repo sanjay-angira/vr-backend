@@ -12,6 +12,7 @@ import { OfferPricingService } from 'src/commonServices/offer-pricing.service';
 import { RazorpayService } from 'src/commonServices/razorpay.service';
 import { Product } from 'src/entities/product/product.entity';
 import { Category } from 'src/entities/productCategory/category.entity';
+import { BlogPost } from 'src/entities/blog/blog-posts.entity';
 import { DataSource, In, ILike, Repository } from 'typeorm';
 import { ProductVariant } from 'src/entities/product/product-variants.entity';
 import { ProductAttribute } from 'src/entities/product/product-attribute.entity';
@@ -105,6 +106,8 @@ export class CustomerService {
     private readonly cartItemRepository: Repository<CartItem>,
     @InjectRepository(Banner)
     private readonly bannerRepository: Repository<Banner>,
+    @InjectRepository(BlogPost)
+    private readonly blogRepository: Repository<BlogPost>,
     @InjectRepository(CmsSection)
     private readonly cmsSectionRepository: Repository<CmsSection>,
     @InjectRepository(Order)
@@ -121,6 +124,101 @@ export class CustomerService {
     private readonly shippingService: ShippingService,
     private readonly dataSource: DataSource,
   ) {}
+
+  async getBanners() {
+    const banners = await this.bannerRepository.find({
+      where: { status: true },
+      order: { position: 'ASC', id: 'ASC' },
+    });
+
+    return successResponse(
+      banners.map((banner) => ({
+        id: banner.id,
+        desktopImage: banner.desktopImage || '',
+        tabletImage: banner.tabletImage || banner.desktopImage || '',
+        mobileImage:
+          banner.mobileImage || banner.tabletImage || banner.desktopImage || '',
+        link: banner.bannerLink || '/shop',
+      })),
+      'Homepage banners retrieved successfully',
+    );
+  }
+
+  async getSitemapEntries() {
+    const [products, blogs, categories] = await Promise.all([
+      this.productRepository
+        .createQueryBuilder('product')
+        .select([
+          'product.id',
+          'product.productSlug',
+          'product.updatedAt',
+          'product.createdAt',
+        ])
+        .where('product.isActive = :isActive', { isActive: true })
+        .andWhere('product.productSlug IS NOT NULL')
+        .andWhere("product.productSlug != ''")
+        .orderBy('product.updatedAt', 'DESC')
+        .getMany(),
+      this.blogRepository
+        .createQueryBuilder('blog')
+        .select([
+          'blog.id',
+          'blog.slug',
+          'blog.updatedAt',
+          'blog.createdAt',
+          'blog.publishedAt',
+        ])
+        .where('blog.isActive = :isActive', { isActive: true })
+        .andWhere('blog.status = :status', { status: 'published' })
+        .andWhere('blog.slug IS NOT NULL')
+        .andWhere("blog.slug != ''")
+        .orderBy('blog.publishedAt', 'DESC', 'NULLS LAST')
+        .addOrderBy('blog.updatedAt', 'DESC')
+        .getMany(),
+      this.categoryRepository
+        .createQueryBuilder('category')
+        .select([
+          'category.id',
+          'category.categorySlug',
+          'category.updatedAt',
+          'category.createdAt',
+        ])
+        .where('category.isActive = :isActive', { isActive: true })
+        .andWhere('category.categorySlug IS NOT NULL')
+        .andWhere("category.categorySlug != ''")
+        .orderBy('category.id', 'ASC')
+        .getMany(),
+    ]);
+
+    const toIso = (value?: Date | null) =>
+      value instanceof Date && !Number.isNaN(value.getTime())
+        ? value.toISOString()
+        : undefined;
+
+    return successResponse(
+      {
+        products: products.map((product) => ({
+          slug: product.productSlug,
+          lastModified:
+            toIso(product.updatedAt) || toIso(product.createdAt) || undefined,
+        })),
+        blogs: blogs.map((blog) => ({
+          slug: blog.slug,
+          lastModified:
+            toIso(blog.updatedAt) ||
+            toIso(blog.publishedAt) ||
+            toIso(blog.createdAt) ||
+            undefined,
+        })),
+        categories: categories.map((category) => ({
+          slug: category.categorySlug,
+          lastModified:
+            toIso(category.updatedAt) || toIso(category.createdAt) || undefined,
+        })),
+      },
+      'Sitemap entries retrieved successfully',
+    );
+  }
 
   private generateOrderNumber(): string {
     const stamp = Date.now().toString(36).toUpperCase();
@@ -612,57 +710,6 @@ export class CustomerService {
       Math.ceil(Number(priceBounds?.maxPrice) || 100000),
     );
 
-    const homepageSectionTypes = new Set<string>([
-      CmsSectionType.PRODUCT_SLIDER,
-      CmsSectionType.CATEGORY_SLIDER,
-      CmsSectionType.BLOG_SECTION,
-      CmsSectionType.REVIEW_SECTION,
-      CmsSectionType.CUSTOM,
-    ]);
-
-    const homepageSectionCopy = productSections
-      .filter((section) => homepageSectionTypes.has(section.type))
-      .map((section) => {
-        const title = String(section.title || '').trim();
-        const configuredLimit = Number(section.data?.maxProducts);
-        const heading =
-          typeof section.data?.heading === 'string'
-            ? section.data.heading.trim()
-            : '';
-        const slug =
-          (section.slug && String(section.slug).trim()) ||
-          this.slugifySectionTitle(title || heading || `section-${section.id}`);
-
-        return {
-          slug,
-          title: title || heading,
-          type: section.type,
-          position: section.position,
-          heading,
-          subHeading:
-            typeof section.data?.subHeading === 'string'
-              ? section.data.subHeading.trim()
-              : '',
-          headingAccent:
-            typeof section.data?.headingAccent === 'string'
-              ? section.data.headingAccent.trim()
-              : '',
-          description:
-            typeof section.data?.description === 'string'
-              ? section.data.description.trim()
-              : '',
-          maxProducts:
-            Number.isFinite(configuredLimit) && configuredLimit > 0
-              ? configuredLimit
-              : 8,
-          customSection:
-            typeof section.data?.customSection === 'string'
-              ? section.data.customSection
-              : undefined,
-        };
-      })
-      .filter((section) => Boolean(section.slug));
-
     const productLayoutTypes = new Set<string>([
       CmsSectionType.PRODUCT_SLIDER,
       CmsSectionType.CUSTOM,
@@ -722,7 +769,6 @@ export class CustomerService {
           })),
         ],
         productSections: productSectionOptions,
-        homepageSectionCopy,
         ratingOptions: [
           { value: 4, label: '4 Stars & Up' },
           { value: 3, label: '3 Stars & Up' },
@@ -803,6 +849,7 @@ export class CustomerService {
     const sortBy = (query.sortBy || 'newest').trim().toLowerCase();
     const newArrivals = this.parseBooleanFlag(query.newArrivals);
     const featured = this.parseBooleanFlag(query.featured);
+    const bestSeller = this.parseBooleanFlag(query.bestSeller);
     const bestDeals = this.parseBooleanFlag(query.bestDeals);
     const sectionSlugs = (query.sectionSlugs || '')
       .split(',')
@@ -870,17 +917,21 @@ export class CustomerService {
       }
 
       if (newArrivals) {
-        const since = new Date();
-        since.setDate(since.getDate() - 30);
-        idQb.andWhere('product.createdAt >= :since', { since });
+        idQb.andWhere('product.newArrival = :newArrival', {
+          newArrival: true,
+        });
       }
 
       if (featured) {
-        idQb
-          .leftJoin('product.productOffers', 'productOffers')
-          .andWhere('productOffers.isActive = :featuredActive', {
-            featuredActive: true,
-          });
+        idQb.andWhere('product.isFeatured = :isFeatured', {
+          isFeatured: true,
+        });
+      }
+
+      if (bestSeller) {
+        idQb.andWhere('product.bestSeller = :bestSeller', {
+          bestSeller: true,
+        });
       }
 
       if (hasMinRating) {

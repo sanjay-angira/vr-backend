@@ -5,7 +5,6 @@ import { Product } from 'src/entities/product/product.entity';
 import { Category } from 'src/entities/productCategory/category.entity';
 import { CustomerController } from './customer.controller';
 import { CustomerService } from './customer.service';
-import { CustomerHomepageService } from './customer-homepage.service';
 import { CartItem } from 'src/entities/cart/cart-item.entity';
 import { Cart } from 'src/entities/cart/cart.entity';
 import { ProductVariant } from 'src/entities/product/product-variants.entity';
@@ -61,7 +60,6 @@ import { ShippingModule } from 'src/shipping/shipping.module';
   providers: [
     CustomerService,
     CustomerAuthService,
-    CustomerHomepageService,
     CustomerBlogService,
     CustomerAddressService,
     CustomerWishlistService,
