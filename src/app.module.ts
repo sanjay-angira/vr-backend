@@ -21,6 +21,7 @@ import { ProductTagsModule } from './tags/product-tags.module';
 import { AttributeModule } from './attribute/attribute.module';
 import { CustomerModule } from './customer/customer.module';
 import { ContactUsLeadsModule } from './contact-us-leads/contact-us-leads.module';
+import { NewsletterModule } from './newsletter/newsletter.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { BannerModule } from './banner/banner.module';
 import { CmsSectionModule } from './cms-section/cms-section.module';
@@ -43,6 +44,7 @@ import { migrateProductStatusColumns } from './commonServices/migrate-product-st
 import { migrateBrandRemoval } from './commonServices/migrate-brand-removal';
 import { migrateOfferResponsiveImages } from './commonServices/migrate-offer-responsive-images';
 import { migrateCouponTimeBased } from './commonServices/migrate-coupon-time-based';
+import { migrateNewsletterSubscribers } from './commonServices/migrate-newsletter-subscribers';
 import { migrateBannerResponsiveFields } from './commonServices/migrate-banner-responsive-fields';
 import { CommonModule } from './commonServices/common.module';
 import { AdminAuthGuard } from './commonServices/admin-auth.guard';
@@ -103,6 +105,7 @@ import { AdminAuthGuard } from './commonServices/admin-auth.guard';
           await migrateWarehouses(prep);
           await migrateOfferResponsiveImages(prep);
           await migrateCouponTimeBased(prep);
+          await migrateNewsletterSubscribers(prep);
         } finally {
           await prep.destroy();
         }
@@ -132,6 +135,7 @@ import { AdminAuthGuard } from './commonServices/admin-auth.guard';
     ProductTagsModule,
     CustomerModule,
     ContactUsLeadsModule,
+    NewsletterModule,
     BannerModule,
     CmsSectionModule,
     UploadModule,

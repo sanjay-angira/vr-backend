@@ -17,6 +17,7 @@ import { migrateProductStatusColumns } from './commonServices/migrate-product-st
 import { migrateBrandRemoval } from './commonServices/migrate-brand-removal';
 import { migrateOfferResponsiveImages } from './commonServices/migrate-offer-responsive-images';
 import { migrateCouponTimeBased } from './commonServices/migrate-coupon-time-based';
+import { migrateNewsletterSubscribers } from './commonServices/migrate-newsletter-subscribers';
 import { migrateBannerResponsiveFields } from './commonServices/migrate-banner-responsive-fields';
 
 async function prepareImageUrlColumns() {
@@ -48,6 +49,7 @@ async function prepareImageUrlColumns() {
     await migrateWarehouses(prep);
     await migrateOfferResponsiveImages(prep);
     await migrateCouponTimeBased(prep);
+    await migrateNewsletterSubscribers(prep);
   } finally {
     await prep.destroy();
   }
