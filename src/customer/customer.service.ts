@@ -542,6 +542,25 @@ export class CustomerService {
     );
   }
 
+  async getStoreCategoryBySlug(slug: string) {
+    const category = await this.categoryRepository.findOne({
+      where: {
+        categorySlug: ILike(slug.trim()),
+        isActive: true,
+      },
+      relations: { parent: true },
+    });
+
+    if (!category) {
+      throw new NotFoundException('Category not found');
+    }
+
+    return successResponse(
+      category,
+      'Category retrieved successfully',
+    );
+  }
+
   async searchStore(q?: string, limitRaw?: string | number) {
     const query = String(q || '')
       .trim()

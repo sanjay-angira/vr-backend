@@ -127,6 +127,13 @@ export class CustomerController {
     return this.customerService.getStoreCategories();
   }
 
+  @Get('category/:slug')
+  @ApiOperation({ summary: 'Get a published product category by slug' })
+  @ApiParam({ name: 'slug', required: true, type: String })
+  async getCategoryBySlug(@Param('slug') slug: string) {
+    return this.customerService.getStoreCategoryBySlug(slug);
+  }
+
   @Get('store-filters')
   @ApiOperation({
     summary: 'Get store filter options (categories, price range, banners)',
